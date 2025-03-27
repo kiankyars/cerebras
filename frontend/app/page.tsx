@@ -7,10 +7,16 @@ import { AutoDrawButton } from './components/AutoDrawButton'
 import { ImproveDrawingButton } from './components/ImproveDrawingButton'
 import { PreviewShapeUtil } from './PreviewShape/PreviewShape'
 import { Model3DPreviewShapeUtil } from './PreviewShape/Model3DPreviewShape'
-import ThreeJSCanvas from './components/three/canvas'
+// import ThreeJSCanvas from './components/three/canvas'
 import { useTabStore } from './store/appStore'
 import TestAddCodeButton from './components/TestAddCodeButton'
 import { TldrawLogo } from './components/TldrawLogo'
+
+// Dynamically import ThreeJSCanvas with ssr: false
+const ThreeJSCanvas = dynamic(
+	() => import('./components/three/canvas'),
+	{ ssr: false }
+)
 
 const Tldraw = dynamic(async () => (await import('@tldraw/tldraw')).Tldraw, {
 	ssr: false,

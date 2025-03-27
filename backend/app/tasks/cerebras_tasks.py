@@ -1,5 +1,4 @@
 import asyncio
-from cerebras.cloud.sdk import AsyncCerebras
 from app.core.celery_app import celery_app
 from app.core.config import settings
 from app.tasks.tasks import AsyncAITask, GenericPromptTask, DEFAULT_MAX_TOKENS, DEFAULT_TEMPERATURE
@@ -8,17 +7,66 @@ from typing import Dict, Any, Optional, List
 # Default model configuration for Cerebras
 DEFAULT_MODEL = "llama3.1-8b"
 
+# Create a mock Cerebras client when API key is not available
+class MockCerebrasClient:
+    """A mock client that provides a compatible API but returns simple responses"""
+    
+    class ChatCompletions:
+        async def create(self, model, messages, max_tokens, temperature, top_p=1, **kwargs):
+            """Mock the completions create method"""
+            response_text = "// Mock Cerebras response. This is placeholder code.\n\n"
+            response_text += "// Create a basic cube\n"
+            response_text += "const geometry = new THREE.BoxGeometry(1, 1, 1);\n"
+            response_text += "const material = new THREE.MeshStandardMaterial({ color: 0x1a85ff });\n"
+            response_text += "const cube = new THREE.Mesh(geometry, material);\n"
+            response_text += "cube.position.set(0, 0.5, 0);\n\n"
+            response_text += "// Return the cube\n"
+            response_text += "return cube;"
+            
+            # Create a mock response object with the necessary structure
+            class MockResponse:
+                def __init__(self, text):
+                    self.model = "mock-cerebras-model"
+                    self.choices = [type('obj', (object,), {
+                        'message': type('obj', (object,), {
+                            'content': text
+                        })
+                    })]
+                    self.usage = type('obj', (object,), {
+                        'prompt_tokens': 10,
+                        'completion_tokens': 50,
+                        'total_tokens': 60
+                    })
+            
+            return MockResponse(response_text)
+    
+    def __init__(self):
+        self.chat = type('obj', (object,), {'completions': self.ChatCompletions()})
+
 # Create Cerebras client
-async def get_cerebras_client() -> AsyncCerebras:
-    client = AsyncCerebras(api_key=settings.CEREBRAS_API_KEY)
-    return client
+async def get_cerebras_client():
+    if not settings.CEREBRAS_API_KEY:
+        print("Warning: Cerebras API key not configured. Using mock client.")
+        return MockCerebrasClient()
+    
+    try:
+        # Only import the real client if we have an API key
+        from cerebras.cloud.sdk import AsyncCerebras
+        client = AsyncCerebras(api_key=settings.CEREBRAS_API_KEY)
+        return client
+    except ImportError:
+        print("Warning: cerebras.cloud.sdk package not found. Using mock client.")
+        return MockCerebrasClient()
+    except Exception as e:
+        print(f"Error initializing Cerebras client: {e}. Using mock client.")
+        return MockCerebrasClient()
 
 class AsyncCerebrasTask(AsyncAITask):
     """Base class for Cerebras Celery tasks that use async functions."""
     _client = None
     
     @property
-    async def client(self) -> AsyncCerebras:
+    async def client(self):
         if self._client is None:
             self._client = await get_cerebras_client()
         return self._client
@@ -60,7 +108,7 @@ class CerebrasPromptTask(GenericPromptTask, AsyncCerebrasTask):
             
         return message_params
     
-    async def send_message(self, client: AsyncCerebras, message_params: Dict[str, Any]) -> Any:
+    async def send_message(self, client, message_params: Dict[str, Any]) -> Any:
         """Send the message to Cerebras."""
         model = message_params.pop("model")
         return await client.chat.completions.create(model=model, top_p=1, **message_params)
@@ -84,4 +132,4 @@ class CerebrasPromptTask(GenericPromptTask, AsyncCerebrasTask):
         }
 
 # Register the task properly with Celery
-CerebrasPromptTask = celery_app.register_task(CerebrasPromptTask()) 
+CerebrasPromptTask = celery_app.register_task(CerebrasPromptTask())
