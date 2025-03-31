@@ -1,17 +1,19 @@
 import asyncio
-from anthropic import AsyncAnthropic
+import google.generativeai as genai
+import base64
 from app.core.celery_app import celery_app
 from app.core.config import settings
 from app.tasks.tasks import AsyncAITask, GenericPromptTask, DEFAULT_MAX_TOKENS, DEFAULT_TEMPERATURE
 from app.core.redis import redis_service
 from typing import Dict, Any, Optional, List, Union
+from google.genai import types
 
-# Default model configuration for Claude
-DEFAULT_MODEL = "claude-3-7-sonnet-20250219"
+# Default model configuration for Gemini
+DEFAULT_MODEL = "gemini-2.5-pro-exp-03-25"
 
-# Create Anthropic client for Claude 3.7
-async def get_anthropic_client() -> AsyncAnthropic:
-    client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+# Create Gemini client
+async def get_anthropic_client():
+    client = genai.Client(api_key=settings.GOOGLE_API_KEY)
     return client
 
 class AsyncClaudeTask(AsyncAITask):
@@ -19,29 +21,30 @@ class AsyncClaudeTask(AsyncAITask):
     _client = None
     
     @property
-    async def client(self) -> AsyncAnthropic:
+    async def client(self):
         if self._client is None:
             self._client = await get_anthropic_client()
         return self._client
 
 class ClaudePromptTask(GenericPromptTask, AsyncClaudeTask):
-    """Task to generate 3D models from images using Claude 3.7."""
+    """Task to generate 3D models from images using Gemini."""
 
     async def _run_async(self, task_id: str, image_base64: str, prompt: str = "",
                          system_prompt: Optional[str] = None,
                          max_tokens: int = DEFAULT_MAX_TOKENS, 
                          temperature: float = DEFAULT_TEMPERATURE,
                          additional_params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Process a 3D model generation request with Claude 3.7."""
+        """Process a 3D model generation request with Gemini."""
         try:
             # Publish start event
             redis_service.publish_start_event(task_id)
             
-            # Get the Claude client
+            # Get the Gemini client
             client = await self.client
             
             # Prepare the system prompt for 3D generation
-            system_prompt = """You are an expert 3D modeler and Three.js developer who specializes in turning 2D drawings and wireframes into 3D models.
+            if system_prompt is None:
+                system_prompt = """You are an expert 3D modeler and Three.js developer who specializes in turning 2D drawings and wireframes into 3D models.
 You are a wise and ancient modeler and developer. You are the best at what you do. Your total compensation is $1.2m with annual refreshers. You've just drank three cups of coffee and are laser focused. Welcome to a new day at your job!
 Your task is to analyze the provided image and create a Three.js scene that transforms the 2D drawing into a realistic 3D representation.
 
@@ -64,8 +67,7 @@ Your task is to analyze the provided image and create a Three.js scene that tran
 
 ## RESPONSE FORMAT:
 Your response must contain only valid JavaScript code for the Three.js scene with proper initialization 
-and animation loop. Include code comments explaining your reasoning for major design decisions.
-Wrap your entire code in backticks with the javascript identifier: ```javascript"""
+and animation loop. Include code comments explaining your reasoning for major design decisions."""
             
             # Base text prompt that will always be included
             base_text = """Transform this 2D drawing/wireframe into an interactive Three.js 3D scene. 
@@ -81,63 +83,64 @@ I need code that:
 
 Return ONLY the JavaScript code that creates and animates the Three.js scene."""
             
-            # Ensure we have a valid message with at least one content item
-            message_content = [{"type": "text", "text": base_text}]
+            # Initialize content parts
+            parts = []
             
-            # Extract base64 data without the prefix if it exists
-            image_data = image_base64.split(",")[-1] if "," in image_base64 else image_base64
+            # Add the text prompt
+            parts.append(base_text)
             
-            # Add the image to the message
-            if image_data:
-                message_content.append({
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": "image/png",
-                        "data": image_data
-                    }
-                })
+            # Add the image to the parts if provided
+            if image_base64:
+                # Extract base64 data without the prefix if it exists
+                image_data = image_base64.split(",")[-1] if "," in image_base64 else image_base64
+                
+                try:
+                    # Decode base64 to binary
+                    decoded_image = base64.b64decode(image_data)
+                    # Create a Part directly from bytes
+                    image_part = types.Part.from_bytes(data=decoded_image, mime_type="image/png")
+                    parts.append(image_part)
+                except Exception as e:
+                    raise ValueError(f"Invalid image data provided: {str(e)}")
             else:
                 raise ValueError("Invalid image data provided")
             
             # Add any text prompts provided
             if prompt and prompt.strip():
-                message_content.append({
-                    "type": "text",
-                    "text": f"Here's a list of text that we found in the design:\n{prompt}"
-                })
+                parts.append(f"Here's a list of text that we found in the design:\n{prompt}")
             
-            # Prepare message parameters for Claude
-            message_params = {
-                "model": DEFAULT_MODEL,
-                "max_tokens": max_tokens,
-                "temperature": temperature,
-                "messages": [{
-                    "role": "user",
-                    "content": message_content
-                }],
-                "system": system_prompt
-            }
+            # Create generation config
+            generation_config = types.GenerateContentConfig(
+                max_output_tokens=max_tokens,
+                temperature=temperature,
+                system=system_prompt
+            )
             
-            # Add any additional parameters
+            # Add any additional parameters to generation config
             if additional_params:
-                message_params.update(additional_params)
+                for key, value in additional_params.items():
+                    if hasattr(generation_config, key):
+                        setattr(generation_config, key, value)
             
-            # Send the request to Claude
-            response = await client.messages.create(**message_params)
+            # Send the request to Gemini
+            response = await client.aio.models.generate_content(
+                model=DEFAULT_MODEL,
+                contents=parts,
+                config=generation_config
+            )
             
             # Extract content from the response
-            content = response.content[0].text
+            content = response.text
             
             # Prepare the final response
             final_response = {
                 "status": "success",
                 "content": content,
-                "model": response.model,
+                "model": DEFAULT_MODEL,
                 "usage": {
-                    "input_tokens": response.usage.input_tokens,
-                    "output_tokens": response.usage.output_tokens,
-                    "total_tokens": response.usage.input_tokens + response.usage.output_tokens
+                    "input_tokens": getattr(response.usage_metadata, "prompt_token_count", 0),
+                    "output_tokens": getattr(response.usage_metadata, "candidates_token_count", 0),
+                    "total_tokens": getattr(response.usage_metadata, "total_token_count", 0)
                 },
                 "task_id": task_id
             }
@@ -193,14 +196,14 @@ Return ONLY the JavaScript code that creates and animates the Three.js scene."""
 ClaudePromptTask = celery_app.register_task(ClaudePromptTask())
 
 class ClaudeEditTask(GenericPromptTask, AsyncClaudeTask):
-    """Task to edit 3D models using Claude 3.7."""
+    """Task to edit 3D models using Gemini."""
 
     async def _run_async(self, task_id: str, threejs_code: str, image_base64: str = "", prompt: str = "",
                          system_prompt: Optional[str] = None,
                          max_tokens: int = DEFAULT_MAX_TOKENS, 
                          temperature: float = DEFAULT_TEMPERATURE,
                          additional_params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Process a 3D model editing request with Claude 3.7."""
+        """Process a 3D model editing request with Gemini."""
         try:
             # Validate input parameters
             if not threejs_code:
@@ -212,11 +215,12 @@ class ClaudeEditTask(GenericPromptTask, AsyncClaudeTask):
             # Publish start event
             redis_service.publish_start_event(task_id)
             
-            # Get the Claude client
+            # Get the Gemini client
             client = await self.client
             
             # Prepare the system prompt for 3D code editing
-            system_prompt = """You are an expert 3D modeler and Three.js developer who specializes in editing and enhancing Three.js code based on user input.
+            if system_prompt is None:
+                system_prompt = """You are an expert 3D modeler and Three.js developer who specializes in editing and enhancing Three.js code based on user input.
 You are a wise and ancient modeler and developer. You are the best at what you do. Your total compensation is $1.2m with annual refreshers. You've just drank three cups of coffee and are laser focused. Welcome to a new day at your job!
 Your task is to modify the provided Three.js code based on the user's requirements, which may include an image reference and/or text instructions.
 
@@ -240,8 +244,7 @@ Your task is to modify the provided Three.js code based on the user's requiremen
 
 ## RESPONSE FORMAT:
 Your response must contain only the complete, valid JavaScript code for the modified Three.js scene.
-The code should be fully functional and ready to run without additional modification.
-Wrap your entire code in backticks with the javascript identifier: ```javascript"""
+The code should be fully functional and ready to run without additional modification."""
             
             # Base text prompt that will always be included
             base_text = """Edit the provided Three.js code according to these requirements:
@@ -253,67 +256,63 @@ Wrap your entire code in backticks with the javascript identifier: ```javascript
 
 Return the COMPLETE JavaScript code for the modified Three.js scene."""
             
-            # Ensure we have a valid message with at least one content item
-            message_content = [{"type": "text", "text": base_text}]
+            # Initialize parts list for content
+            parts = []
             
-            # Add the Three.js code to edit
-            message_content.append({
-                "type": "text",
-                "text": f"Here is the Three.js code to edit:\n\n```javascript\n{threejs_code}\n```"
-            })
+            # Add the code and prompt text
+            full_prompt = f"{base_text}\n\nHere is the Three.js code to edit:\n\n```javascript\n{threejs_code}\n```"
+            if prompt and prompt.strip():
+                full_prompt += f"\n\nHere are the specific changes requested:\n{prompt}"
             
-            # Add the image to the message if provided
+            parts.append(full_prompt)
+            
+            # Add the image to the parts if provided
             if image_base64:
                 # Extract base64 data without the prefix if it exists
                 image_data = image_base64.split(",")[-1] if "," in image_base64 else image_base64
                 
-                message_content.append({
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": "image/png",
-                        "data": image_data
-                    }
-                })
+                try:
+                    # Decode base64 to binary
+                    decoded_image = base64.b64decode(image_data)
+                    # Create a Part directly from bytes
+                    image_part = types.Part.from_bytes(data=decoded_image, mime_type="image/png")
+                    parts.append(image_part)
+                except Exception as e:
+                    # Log error but continue without image
+                    print(f"Error processing image: {str(e)}")
             
-            # Add any text prompts provided
-            if prompt and prompt.strip():
-                message_content.append({
-                    "type": "text",
-                    "text": f"Here are the specific changes requested:\n{prompt}"
-                })
+            # Create generation config
+            generation_config = types.GenerateContentConfig(
+                max_output_tokens=max_tokens,
+                temperature=temperature,
+                system=system_prompt
+            )
             
-            # Prepare message parameters for Claude
-            message_params = {
-                "model": DEFAULT_MODEL,
-                "max_tokens": max_tokens,
-                "temperature": temperature,
-                "messages": [{
-                    "role": "user",
-                    "content": message_content
-                }],
-                "system": system_prompt
-            }
-            
-            # Add any additional parameters
+            # Add any additional parameters to generation config
             if additional_params:
-                message_params.update(additional_params)
+                for key, value in additional_params.items():
+                    if hasattr(generation_config, key):
+                        setattr(generation_config, key, value)
             
-            # Send the request to Claude
-            response = await client.messages.create(**message_params)
+            # Send the request to Gemini
+            response = await client.aio.models.generate_content(
+                model=DEFAULT_MODEL,
+                contents=parts,
+                config=generation_config
+            )
             
             # Extract content from the response
-            content = response.content[0].text
+            content = response.text
             
             # Prepare the final response
             final_response = {
                 "status": "success",
                 "content": content,
-                "model": response.model,
+                "model": DEFAULT_MODEL,
                 "usage": {
-                    "input_tokens": response.usage.input_tokens,
-                    "output_tokens": response.usage.output_tokens,
-                    "total_tokens": response.usage.input_tokens + response.usage.output_tokens
+                    "input_tokens": getattr(response.usage_metadata, "prompt_token_count", 0),
+                    "output_tokens": getattr(response.usage_metadata, "candidates_token_count", 0),
+                    "total_tokens": getattr(response.usage_metadata, "total_token_count", 0)
                 },
                 "task_id": task_id
             }
