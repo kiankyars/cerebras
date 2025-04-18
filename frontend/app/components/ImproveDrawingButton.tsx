@@ -1,14 +1,28 @@
 import { useEditor, useToasts } from '@tldraw/tldraw'
 import { useCallback, useState } from 'react'
 import { improveDrawing } from '../lib/improveDrawing'
+import { validateApiKeys } from '../utils/apiKeys'
+import { useAppUIStore } from '../store/appStore'
 
 export function ImproveDrawingButton() {
   const editor = useEditor()
   const { addToast } = useToasts()
   const [isImproving, setIsImproving] = useState(false)
+  const setApiSettingsOpen = useAppUIStore(state => state.setApiSettingsOpen)
 
   const handleClick = useCallback(async () => {
     try {
+      // Check if API keys are set
+      if (!validateApiKeys()) {
+        addToast({
+          title: 'API Keys Required',
+          description: 'Please set up your API keys in the settings',
+          icon: 'cross',
+        })
+        setApiSettingsOpen(true)
+        return
+      }
+      
       // Get the selected shapes to track them during improvement
       const selectedShapes = editor.getSelectedShapes()
       if (selectedShapes.length === 0) {
@@ -49,7 +63,7 @@ export function ImproveDrawingButton() {
       // Reset state
       setIsImproving(false)
     }
-  }, [editor, addToast])
+  }, [editor, addToast, setApiSettingsOpen])
 
   // Magic wand icon as an SVG
   const MagicWandIcon = () => (

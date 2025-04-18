@@ -1,16 +1,30 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useEditor, useToasts, TLShapeId } from '@tldraw/tldraw'
 import { vibe3DCode } from '../lib/vibe3DCode'
+import { validateApiKeys } from '../utils/apiKeys'
+import { useAppUIStore } from '../store/appStore'
 
 export function AutoDrawButton() {
   const [enabled, setEnabled] = useState(false)
   const editor = useEditor()
   const { addToast } = useToasts()
+  const setApiSettingsOpen = useAppUIStore(state => state.setApiSettingsOpen)
   
   // Toggle auto-drawing feature
   const handleClick = useCallback(() => {
+    // Check if API keys are set before enabling
+    if (!validateApiKeys()) {
+      addToast({
+        title: 'API Keys Required',
+        description: 'Please set up your API keys in the settings',
+        icon: 'cross',
+      })
+      setApiSettingsOpen(true)
+      return
+    }
+    
     setEnabled(prev => !prev)
-  }, [])
+  }, [addToast, setApiSettingsOpen])
   
   // Create a custom implementation for useAutoModel
   useEffect(() => {

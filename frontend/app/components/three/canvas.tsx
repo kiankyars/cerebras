@@ -7,7 +7,7 @@ import { InfiniteGrid } from '@/components/three/InfiniteGrid'
 import { FirstPersonController } from '@/components/three/FirstPersonController'
 import { Perf } from 'r3f-perf'
 import { MeshCreator } from '@/components/three/MeshCreator'
-import { useAppStore } from '@/store/appStore'
+import { useAppUIStore } from '@/store/appStore'
 import { useEffect, useRef, useState } from 'react'
 import { Crosshair } from '@/components/three/Crosshair'
 import * as THREE from 'three'
@@ -18,7 +18,7 @@ import { Ocean } from '@/components/three/Ocean'
 import { useObjectStore } from '@/store/appStore'
 
 const FocusDetector = () => {
-  const { setUIFocused } = useAppStore()
+  const { setUIFocused } = useAppUIStore()
   
   useEffect(() => {
     const handleFocusChange = () => {

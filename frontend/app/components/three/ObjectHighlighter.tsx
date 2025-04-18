@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useThree, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useAppStore, useObjectStore } from '@/store/appStore'
+import { useAppUIStore, useObjectStore } from '@/store/appStore'
 
 interface ObjectHighlighterProps {
   onObjectSelected?: (object: THREE.Object3D | null) => void
@@ -16,7 +16,7 @@ export function ObjectHighlighter({ onObjectSelected, excludeObjects = [] }: Obj
   const isPointerLocked = useRef(false)
   
   // Get UI focus state and selected object from store
-  const { isUIFocused, selectedObject, setIsDeleting } = useAppStore()
+  const { isUIFocused, selectedObject, setIsDeleting } = useAppUIStore()
   
   // Get object store methods
   const { removeObject } = useObjectStore()
@@ -348,7 +348,7 @@ export function ObjectHighlighter({ onObjectSelected, excludeObjects = [] }: Obj
           
           // Clear the selection before removing the object
           // Use direct state setting to avoid circular update issues
-          useAppStore.setState({ selectedObject: null });
+          useAppUIStore.setState({ selectedObject: null });
           
           // Break the update cycle by waiting a tick
           setTimeout(() => {
@@ -376,13 +376,13 @@ export function ObjectHighlighter({ onObjectSelected, excludeObjects = [] }: Obj
             } catch (innerError) {
               console.error("Error in delete timeout callback:", innerError);
               // Make sure we reset the deleting flag
-              useAppStore.setState({ isDeleting: false });
+              useAppUIStore.setState({ isDeleting: false });
             }
           }, 0);
         } catch (error) {
           console.error("Error deleting object:", error);
           // Make sure we reset the deleting flag
-          useAppStore.setState({ isDeleting: false });
+          useAppUIStore.setState({ isDeleting: false });
         }
       }
     };

@@ -8,9 +8,10 @@ import { ImproveDrawingButton } from './components/ImproveDrawingButton'
 import { PreviewShapeUtil } from './PreviewShape/PreviewShape'
 import { Model3DPreviewShapeUtil } from './PreviewShape/Model3DPreviewShape'
 // import ThreeJSCanvas from './components/three/canvas'
-import { useTabStore } from './store/appStore'
+import { useTabStore, useAppUIStore } from './store/appStore'
 import TestAddCodeButton from './components/TestAddCodeButton'
 import { TldrawLogo } from './components/TldrawLogo'
+import { ApiSettingsModal } from './components/ApiSettingsModal'
 
 // Dynamically import ThreeJSCanvas with ssr: false
 const ThreeJSCanvas = dynamic(
@@ -74,12 +75,27 @@ const TabGroup = ({ activeTab, setActiveTab }: TabGroupProps) => {
 			>
 				3D World
 			</button>
+			<button 
+				style={{
+					padding: '6px 12px', 
+					border: 'none', 
+					borderRadius: '4px',
+					backgroundColor: '#f0f0f0', 
+					color: 'black',
+					cursor: 'pointer',
+					transition: 'background-color 0.2s'
+				}}
+				onClick={() => useAppUIStore.getState().setApiSettingsOpen(true)}
+			>
+				API Settings
+			</button>
 		</div>
 	)
 }
 
 export default function App() {
 	const { activeTab, setActiveTab } = useTabStore()
+	const { isApiSettingsOpen, setApiSettingsOpen } = useAppUIStore()
 
 	return (
 		<>
@@ -109,6 +125,10 @@ export default function App() {
 				<ThreeJSCanvas visible={activeTab === 'threejs'} />
 			</div>
 			<TestAddCodeButton activeTab={activeTab} setActiveTab={setActiveTab} />
+			<ApiSettingsModal 
+				isOpen={isApiSettingsOpen} 
+				onClose={() => setApiSettingsOpen(false)} 
+			/>
 		</>
 	)
 }

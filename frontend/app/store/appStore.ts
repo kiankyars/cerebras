@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import * as THREE from 'three'
+import { validateApiKeys } from '../utils/apiKeys'
 
 // Declare global window interface for our object references
 declare global {
@@ -46,6 +47,7 @@ interface AppUIState {
   selectedObject: THREE.Object3D | null
   transformMode: TransformMode
   isDeleting: boolean
+  isApiSettingsOpen: boolean
   
   // Actions
   setUIFocused: (focused: boolean) => void
@@ -53,26 +55,25 @@ interface AppUIState {
   setSelectedObject: (object: THREE.Object3D | null) => void
   setTransformMode: (mode: TransformMode) => void
   setIsDeleting: (isDeleting: boolean) => void
+  setApiSettingsOpen: (open: boolean) => void
 }
 
-export const useAppStore = create<AppUIState>((set) => ({
+export const useAppUIStore = create<AppUIState>((set) => ({
   // Initial state
   isUIFocused: false,
   isCodeEditorOpen: false,
   selectedObject: null,
   transformMode: 'translate',
   isDeleting: false,
+  isApiSettingsOpen: false,
   
   // Actions
   setUIFocused: (focused) => set({ isUIFocused: focused }),
   setCodeEditorOpen: (open) => set({ isCodeEditorOpen: open }),
-  setSelectedObject: (object) => set((state) => {
-    // Prevent selection changes during deletion
-    if (state.isDeleting) return state;
-    return { selectedObject: object };
-  }),
+  setSelectedObject: (object) => set({ selectedObject: object }),
   setTransformMode: (mode) => set({ transformMode: mode }),
-  setIsDeleting: (isDeleting) => set({ isDeleting })
+  setIsDeleting: (isDeleting) => set({ isDeleting }),
+  setApiSettingsOpen: (open) => set({ isApiSettingsOpen: open }),
 }))
 
 // --------------------------------
@@ -280,7 +281,7 @@ export const useObjectStore = create<ObjectStoreState>()((set, get) => ({
   
   removeObject: (id: string) => {
     // Get current state
-    const appState = useAppStore.getState();
+    const appState = useAppUIStore.getState();
     const { selectedObject, setSelectedObject } = appState;
     
     // Update the objects array first
@@ -292,23 +293,23 @@ export const useObjectStore = create<ObjectStoreState>()((set, get) => ({
     // Use direct state setting instead of the setter function
     if (selectedObject && (selectedObject.uuid === id || selectedObject.userData?.id === id)) {
       // Use direct setState to avoid setter function which may have additional logic
-      useAppStore.setState({ selectedObject: null });
+      useAppUIStore.setState({ selectedObject: null });
       
       // Wait a tick before clearing the deletion flag to ensure all updates have propagated
       setTimeout(() => {
-        useAppStore.setState({ isDeleting: false });
+        useAppUIStore.setState({ isDeleting: false });
       }, 10);
     } else {
       // Not deleting the selected object, so just turn off deleting flag
       setTimeout(() => {
-        useAppStore.setState({ isDeleting: false });
+        useAppUIStore.setState({ isDeleting: false });
       }, 10);
     }
   },
   
   clearObjects: () => {
     set({ objects: [], meshCount: 0 });
-    useAppStore.getState().setSelectedObject(null);
+    useAppUIStore.getState().setSelectedObject(null);
   },
   
   addObjectFromCode: (code: string) => {
