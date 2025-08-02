@@ -1,53 +1,27 @@
-THE FPS AND MANY OTHER PARAMETERS WILL BE TUNABLE, THIS WILL BE MY HYPERPARAMETER TUNING
+You are building a real-time AI coaching backend. Create a Python application that:
 
-As a hackathon veteran, here's your roadmap:
+INPUT: Video stream (webcam) at 1fps
+OUTPUT: Voice feedback via text-to-speech
 
-## Phase 1: MVP Scope (Weekend Hackathon Style)
-**Start with 3 activities max:**
-- Basketball (proven concept)
-- Yoga (huge market, clear form feedback)
-- Guitar (distinctive, visual feedback)
+CORE PIPELINE:
+1. Capture video frames at 1fps
+2. Send to Gemini API with prompt template
+3. Get text response
+4. Convert to speech and play audio
 
-## Phase 2: Technical Architecture
-**Core Stack:**
-- React Native (cross-platform)
-- Camera API for video feed
-- Gemini API for real-time analysis
-- WebRTC for voice feedback
-- Firebase for user data
+PROMPT TEMPLATE:
+"You are a real-time coach. Analyze this video frame. If wrong activity detected, say 'Wrong activity'. Otherwise, provide specific form feedback like Michael Jordan would. Keep responses under 50 words. Be encouraging but direct."
 
-**Key Technical Decisions:**
+TECH STACK:
+- OpenCV for video capture
+- Google Gemini API for analysis
+- pyttsx3 for text-to-speech
+- Threading for non-blocking audio
+
+REQUIREMENTS:
 - Process at 1fps (Gemini limitation)
-- Pre-built prompts per activity
-- Local pose detection for basic form
-- Cloud AI for detailed coaching
+- Real-time voice feedback
+- Handle wrong activity detection
+- Clean shutdown on 'q' key
 
-## Phase 3: User Experience Flow
-1. **Activity Selection** - Grid of 3 activities with preview videos
-2. **Camera Setup** - Permission + positioning guide
-3. **Live Session** - FaceTime-style with overlay feedback
-4. **Voice Coach** - "Bend your knees more" / "Great form!"
-
-## Phase 4: Growth Strategy
-**Phase 1:** 3 activities, manual prompt tuning
-**Phase 2:** Add 2-3 more (dance, cooking, boxing)
-**Phase 3:** User-generated activities (upload custom prompts)
-
-**Start coding now.** The vision is clear - build the basketball mode first, then add yoga/guitar. Each activity is essentially the same app with different prompts and form detection rules.
-
-LNAGUAGE WILL BE ANY LANGUAGE
-
-**Your pipeline:** Video → Gemini → Text → TTS → Voice
-**Add:** Basic pose detection for visual overlays
-
-Day 1: Backend pipeline working
-Day 2: Basic React Native camera + voice
-Day 3: Polish UI
-
-two modes: live (premieum) upload video (FREE)
-
-Each board will have its own settings, but then the user can prompt just like Cursor or any other app where you have the preset stuff in the backend and then the user can customize it. And then there'll be like level menus such as boards, cooking, instruments, and then within those it'll be like a Strava-Peloton integration.
-
-the prompt should also say, if the user is not doing at all what is chosen, then sya this is the wrong activity
-
-eventually will have memory on the user in the roadmap
+Create complete working backend with threading.
