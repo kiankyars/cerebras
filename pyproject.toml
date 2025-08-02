@@ -6,6 +6,7 @@ dependencies = [
     "opencv-python",
     "google-generativeai",
     "python-dotenv",
+    "google-genai>=1.28.0",
 ]
 
 [build-system]

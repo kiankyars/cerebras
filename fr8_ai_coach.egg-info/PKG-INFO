@@ -5,3 +5,4 @@ Summary: Real-time AI coaching backend with video capture and voice feedback
 Requires-Dist: opencv-python
 Requires-Dist: google-generativeai
 Requires-Dist: python-dotenv
+Requires-Dist: google-genai>=1.28.0

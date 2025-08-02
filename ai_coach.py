@@ -1,7 +1,7 @@
 import cv2
 import threading
 import time
-import google.generativeai as genai
+from google import genai
 import os
 from dotenv import load_dotenv
 import argparse
@@ -15,7 +15,8 @@ api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
     raise ValueError("GEMINI_API_KEY not found in environment variables")
 
-genai.configure(api_key=api_key)
+# Initialize the new genai client
+client = genai.Client(api_key=api_key)
 
 # Activity-specific prompt templates
 PROMPT_TEMPLATES = {
@@ -48,12 +49,9 @@ def save_wave_file(filename, pcm, channels=1, rate=24000, sample_width=2):
 def speak_text(text):
     """Convert text to speech using Gemini TTS and play it"""
     try:
-        # Initialize the Gemini client for TTS
-        client = genai.Client(api_key=api_key)
-        
-        # Generate speech using Gemini TTS
+        # Generate speech using Gemini TTS with new API
         response = client.models.generate_content(
-            model="gemini-2.5-flash-preview-tts",
+            model="gemini-2.0-flash-exp",
             contents=text,
             config=genai.types.GenerateContentConfig(
                 response_modalities=["AUDIO"],
@@ -103,16 +101,16 @@ def analyze_frame_with_gemini(frame, prompt_template):
         _, buffer = cv2.imencode('.jpg', frame)
         image_bytes = buffer.tobytes()
         
-        # Create the model instance
-        model = genai.GenerativeModel('gemini-1.5-flash')  # Using flash for faster response
+        # Create the prompt with the image using new API
+        response = client.models.generate_content(
+            model="gemini-2.0-flash-exp",
+            contents=[
+                prompt_template,
+                {'mime_type': 'image/jpeg', 'data': image_bytes}
+            ]
+        )
         
-        # Create the prompt with the image
-        response = model.generate_content([
-            prompt_template,
-            {'mime_type': 'image/jpeg', 'data': image_bytes}
-        ])
-        
-        return response.text if response.text else "No feedback available"
+        return response.candidates[0].content.parts[0].text if response.candidates else "No feedback available"
     except Exception as e:
         print(f"Error analyzing frame with Gemini: {e}")
         return "Error in analysis"
