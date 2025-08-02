@@ -6,3 +6,4 @@ Requires-Dist: opencv-python
 Requires-Dist: google-generativeai
 Requires-Dist: python-dotenv
 Requires-Dist: google-genai>=1.28.0
+Requires-Dist: openai>=1.98.0

@@ -1,11 +1,10 @@
 import cv2
-import threading
 import time
 from google import genai
 import os
 from dotenv import load_dotenv
 import argparse
-import wave
+from tts_manager import TTSManager
 
 # Load environment variables
 load_dotenv()
@@ -33,67 +32,6 @@ If they are not playing guitar, say 'Wrong activity'. Otherwise, provide specifi
 Keep responses under 50 words. Be encouraging but direct."""
 }
 
-# Global variables for threading
-audio_queue = []
-audio_lock = threading.Lock()
-stop_event = threading.Event()
-
-def save_wave_file(filename, pcm, channels=1, rate=24000, sample_width=2):
-    """Save PCM audio data to a wave file"""
-    with wave.open(filename, "wb") as wf:
-        wf.setnchannels(channels)
-        wf.setsampwidth(sample_width)
-        wf.setframerate(rate)
-        wf.writeframes(pcm)
-
-def speak_text(text):
-    """Convert text to speech using Gemini TTS and play it"""
-    try:
-        # Generate speech using Gemini TTS with new API
-        response = client.models.generate_content(
-            model="gemini-2.0-flash-exp",
-            contents=text,
-            config=genai.types.GenerateContentConfig(
-                response_modalities=["AUDIO"],
-                speech_config=genai.types.SpeechConfig(
-                    voice_config=genai.types.VoiceConfig(
-                        prebuilt_voice_config=genai.types.PrebuiltVoiceConfig(
-                            voice_name='Kore',  # You can change this to other available voices
-                        )
-                    )
-                ),
-            )
-        )
-        
-        # Extract audio data
-        audio_data = response.candidates[0].content.parts[0].inline_data.data
-        
-        # Save to temporary file and play
-        temp_file = "temp_feedback.wav"
-        save_wave_file(temp_file, audio_data)
-        
-        # Play the audio file
-        os.system(f"afplay {temp_file}")  # macOS command to play audio
-        
-        # Clean up temporary file
-        os.remove(temp_file)
-        
-    except Exception as e:
-        print(f"Error generating or playing speech: {e}")
-
-def audio_worker():
-    """Background thread function to handle audio playback"""
-    while not stop_event.is_set():
-        with audio_lock:
-            if audio_queue:
-                text = audio_queue.pop(0)
-            else:
-                text = None
-        if text:
-            speak_text(text)
-        else:
-            time.sleep(0.1)  # Small delay to prevent busy waiting
-
 def analyze_frame_with_gemini(frame, prompt_template):
     """Send frame to Gemini API for analysis"""
     try:
@@ -115,7 +53,7 @@ def analyze_frame_with_gemini(frame, prompt_template):
         print(f"Error analyzing frame with Gemini: {e}")
         return "Error in analysis"
 
-def main(activity, video_source):
+def main(activity, video_source, tts_provider):
     """Main function to capture video and provide real-time coaching"""
     # Validate activity
     if activity not in PROMPT_TEMPLATES:
@@ -124,9 +62,8 @@ def main(activity, video_source):
     
     prompt_template = PROMPT_TEMPLATES[activity]
     
-    # Start audio thread
-    audio_thread = threading.Thread(target=audio_worker, daemon=True)
-    audio_thread.start()
+    # Initialize TTS manager
+    tts_manager = TTSManager(provider=tts_provider)
     
     # Initialize video capture
     if video_source == "webcam":
@@ -140,13 +77,13 @@ def main(activity, video_source):
         print(f"Error: Could not open video source: {source_name}")
         return
     
-    print(f"AI Coach started for {activity} using {source_name}. Press 'q' to quit.")
+    print(f"AI Coach started for {activity} using {source_name} with {tts_provider} TTS. Press 'q' to quit.")
     
     frame_count = 0
     last_analysis_time = 0
     
     try:
-        while not stop_event.is_set():
+        while True:
             ret, frame = cap.read()
             
             if not ret:
@@ -163,8 +100,7 @@ def main(activity, video_source):
                 print(f"Frame {frame_count}: {feedback}")
                 
                 # Add feedback to audio queue
-                with audio_lock:
-                    audio_queue.append(feedback)
+                tts_manager.add_to_queue(feedback)
                 
                 last_analysis_time = current_time
             
@@ -173,20 +109,15 @@ def main(activity, video_source):
             
             # Check for quit key
             if cv2.waitKey(1) & 0xFF == ord('q'):
-                stop_event.set()
                 break
                 
     except KeyboardInterrupt:
         print("Interrupted by user")
-        stop_event.set()
     
     # Clean up
     cap.release()
     cv2.destroyAllWindows()
-    
-    # Wait for audio thread to finish
-    stop_event.set()
-    audio_thread.join(timeout=1.0)
+    tts_manager.stop()
     
     print("AI Coach stopped.")
 
@@ -204,6 +135,12 @@ if __name__ == "__main__":
         default="webcam",
         help="Video source: 'webcam' for camera input, or path to video file (default: webcam)"
     )
+    parser.add_argument(
+        "--tts-provider",
+        choices=["gemini", "chatgpt"],
+        default="gemini",
+        help="TTS provider to use (default: gemini)"
+    )
     
     args = parser.parse_args()
-    main(args.activity, args.video_source)
+    main(args.activity, args.video_source, args.tts_provider)
