@@ -1,3 +1,3 @@
-Key Insights
-🤸‍♂️ Real-time sports analytics is an untapped frontier: Using MediaPipe and AI models for live body tracking offers a unique intersection of hardware and software that could provide personalized coaching feedback instantly. This could disrupt traditional sports training by making high-level analysis accessible to everyday athletes.
-🔄 The convergence of AI and real-time data streams opens new interaction paradigms: Whether in athletics, academic research, or social media, the ability to process and respond to live data dynamically creates opportunities for more interactive and personalized user experiences.
+## Key Insights
+- 🤸‍♂️ Real-time sports analytics is an untapped frontier: Using MediaPipe and AI models for live body tracking offers a unique intersection of hardware and software that could provide personalized coaching feedback instantly. This could disrupt traditional sports training by making high-level analysis accessible to everyday athletes.
+- 🔄 The convergence of AI and real-time data streams opens new interaction paradigms: Whether in athletics, academic research, or social media, the ability to process and respond to live data dynamically creates opportunities for more interactive and personalized user experiences.

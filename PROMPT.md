@@ -47,3 +47,7 @@ Day 3: Polish UI
 two modes: live (premieum) upload video (FREE)
 
 Each board will have its own settings, but then the user can prompt just like Cursor or any other app where you have the preset stuff in the backend and then the user can customize it. And then there'll be like level menus such as boards, cooking, instruments, and then within those it'll be like a Strava-Peloton integration.
+
+the prompt should also say, if the user is not doing at all what is chosen, then sya this is the wrong activity
+
+eventually will have memory on the user in the roadmap
