@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { TransformControls } from '@react-three/drei'
 import * as THREE from 'three'
-import { useAppStore, useObjectStore } from '@/store/appStore'
+import { useAppUIStore, useObjectStore } from '@/store/appStore'
 import { useThree } from '@react-three/fiber'
 
 interface CustomTransformControlsProps {
@@ -10,7 +10,7 @@ interface CustomTransformControlsProps {
 }
 
 export function CustomTransformControls({ object, onDeselect }: CustomTransformControlsProps) {
-  const { transformMode, setTransformMode, isDeleting } = useAppStore();
+  const { transformMode, setTransformMode, isDeleting } = useAppUIStore();
   const { updateObject } = useObjectStore();
   const transformControlsRef = useRef<any>(null);
   const [lastClick, setLastClick] = useState<number>(0);

@@ -3,6 +3,8 @@ import { useCallback, useState, useEffect } from 'react'
 import { vibe3DCode } from '../lib/vibe3DCode'
 import { edit3DCode } from '../lib/edit3DCode'
 import { Model3DPreviewShape } from '../PreviewShape/Model3DPreviewShape'
+import { validateApiKeys } from '../utils/apiKeys'
+import { useAppUIStore } from '../store/appStore'
 
 export function Vibe3DCodeButton() {
   const editor = useEditor()
@@ -10,6 +12,7 @@ export function Vibe3DCodeButton() {
   const [is3DModelSelected, setIs3DModelSelected] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [thinkingEnabled, setThinkingEnabled] = useState(true)
+  const setApiSettingsOpen = useAppUIStore(state => state.setApiSettingsOpen)
   
   // Update state whenever selection changes
   useEffect(() => {
@@ -41,6 +44,17 @@ export function Vibe3DCodeButton() {
     if (isProcessing) return; // Prevent multiple clicks
     
     try {
+      // Check if API keys are set
+      if (!validateApiKeys()) {
+        addToast({
+          title: 'API Keys Required',
+          description: 'Please set up your API keys in the settings',
+          icon: 'cross',
+        })
+        setApiSettingsOpen(true)
+        return
+      }
+      
       setIsProcessing(true);
       
       if (is3DModelSelected) {
@@ -76,7 +90,7 @@ export function Vibe3DCodeButton() {
     } finally {
       setIsProcessing(false);
     }
-  }, [editor, addToast, is3DModelSelected, isProcessing, thinkingEnabled]);
+  }, [editor, addToast, is3DModelSelected, isProcessing, thinkingEnabled, setApiSettingsOpen]);
 
   // 3D cube icon as an SVG
   const CubeIcon = () => (

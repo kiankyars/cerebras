@@ -3,7 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { Vector3, Euler, Quaternion } from 'three'
 import nipplejs from 'nipplejs'
 import { useControls } from 'leva'
-import { useAppStore } from '@/store/appStore'
+import { useAppUIStore } from '@/store/appStore'
 
 interface MovementState {
   forward: boolean
@@ -22,7 +22,7 @@ export function FirstPersonController() {
   const euler = useRef(new Euler(0, 0, 0, 'YXZ'))
   const quaternion = useRef(new Quaternion())
   
-  const { isUIFocused, isCodeEditorOpen } = useAppStore()
+  const { isUIFocused, isCodeEditorOpen } = useAppUIStore()
 
   const { speed, sensitivity, showOcean } = useControls('Settings', {
     speed: {
