@@ -66,7 +66,7 @@ def analyze_video_with_gemini(video_path, prompt_template):
         # Wait for file to be processed
         while video_file.state.name != "ACTIVE":
             time.sleep(1)
-            video_file = client.files.get(video_file.name)
+            video_file = client.files.get(name=video_file.name)
         
         # Generate content with video
         response = client.models.generate_content(
