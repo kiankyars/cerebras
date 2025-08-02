@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 import argparse
 from tts_manager import TTSManager
+import tempfile
 
 # Load environment variables
 load_dotenv()
@@ -19,38 +20,72 @@ client = genai.Client(api_key=api_key)
 
 # Activity-specific prompt templates
 PROMPT_TEMPLATES = {
-    "basketball": """You are a real-time basketball coach. Analyze this video frame of someone playing basketball. 
+    "basketball": """You are a real-time basketball coach. Analyze this video of someone playing basketball. 
 If they are not playing basketball, say 'Wrong activity'. Otherwise, provide specific form feedback like Michael Jordan would. 
 Keep responses under 50 words. Be encouraging but direct.""",
     
-    "yoga": """You are a real-time yoga coach. Analyze this video frame of someone doing yoga poses. 
+    "yoga": """You are a real-time yoga coach. Analyze this video of someone doing yoga poses. 
 If they are not doing yoga, say 'Wrong activity'. Otherwise, provide specific form feedback to improve their pose. 
 Keep responses under 50 words. Be encouraging but direct.""",
     
-    "guitar": """You are a real-time guitar instructor. Analyze this video frame of someone playing guitar. 
+    "guitar": """You are a real-time guitar instructor. Analyze this video of someone playing guitar. 
 If they are not playing guitar, say 'Wrong activity'. Otherwise, provide specific feedback on their finger positioning and technique. 
 Keep responses under 50 words. Be encouraging but direct."""
 }
 
-def analyze_frame_with_gemini(frame, prompt_template):
-    """Send frame to Gemini API for analysis"""
+def create_video_from_frames(frames, fps=10):
+    """Create a temporary video file from frames"""
+    if not frames:
+        return None
+    
+    # Create temporary video file
+    temp_video = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False)
+    temp_video_path = temp_video.name
+    temp_video.close()
+    
+    # Get frame dimensions
+    height, width = frames[0].shape[:2]
+    
+    # Create video writer
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(temp_video_path, fourcc, fps, (width, height))
+    
+    # Write frames
+    for frame in frames:
+        out.write(frame)
+    
+    out.release()
+    return temp_video_path
+
+def analyze_video_with_gemini(video_path, prompt_template):
+    """Send video to Gemini API for analysis"""
     try:
-        # Convert frame to bytes for Gemini API
-        _, buffer = cv2.imencode('.jpg', frame)
-        image_bytes = buffer.tobytes()
+        # Upload video file using Files API
+        video_file = client.files.upload(file=video_path)
         
-        # Create the prompt with the image using new API
+        # Wait for file to be processed
+        while video_file.state.name != "ACTIVE":
+            time.sleep(1)
+            video_file = client.files.get(video_file.name)
+        
+        # Generate content with video
         response = client.models.generate_content(
             model="gemini-2.0-flash-exp",
             contents=[
-                prompt_template,
-                {'mime_type': 'image/jpeg', 'data': image_bytes}
+                video_file,
+                prompt_template
             ]
         )
         
+        # Clean up video file
+        os.unlink(video_path)
+        
         return response.candidates[0].content.parts[0].text if response.candidates else "No feedback available"
     except Exception as e:
-        print(f"Error analyzing frame with Gemini: {e}")
+        print(f"Error analyzing video with Gemini: {e}")
+        # Clean up video file on error
+        if os.path.exists(video_path):
+            os.unlink(video_path)
         return "Error in analysis"
 
 def main(activity, video_source, tts_provider):
@@ -78,9 +113,13 @@ def main(activity, video_source, tts_provider):
         return
     
     print(f"AI Coach started for {activity} using {source_name} with {tts_provider} TTS. Press 'q' to quit.")
+    print("Analyzing video every 15 seconds at 10fps...")
     
     frame_count = 0
     last_analysis_time = 0
+    frames_buffer = []
+    analysis_interval = 15  # seconds
+    target_fps = 10
     
     try:
         while True:
@@ -91,18 +130,29 @@ def main(activity, video_source, tts_provider):
                 break
             
             frame_count += 1
-            
-            # Process at 1fps
             current_time = time.time()
-            if current_time - last_analysis_time >= 1.0:  # At least 1 second between analyses
-                # Analyze frame with Gemini
-                feedback = analyze_frame_with_gemini(frame, prompt_template)
-                print(f"Frame {frame_count}: {feedback}")
+            
+            # Add frame to buffer (every 3 frames to get ~10fps from 30fps webcam)
+            if frame_count % 3 == 0:
+                frames_buffer.append(frame.copy())
+            
+            # Analyze every 15 seconds
+            if current_time - last_analysis_time >= analysis_interval and frames_buffer:
+                print(f"Analyzing {len(frames_buffer)} frames at {target_fps}fps...")
                 
-                # Add feedback to audio queue
-                tts_manager.add_to_queue(feedback)
-                
-                last_analysis_time = current_time
+                # Create video from frames
+                video_path = create_video_from_frames(frames_buffer, target_fps)
+                if video_path:
+                    # Analyze video with Gemini
+                    feedback = analyze_video_with_gemini(video_path, prompt_template)
+                    print(f"Analysis result: {feedback}")
+                    
+                    # Add feedback to audio queue
+                    tts_manager.add_to_queue(feedback)
+                    
+                    # Clear buffer
+                    frames_buffer = []
+                    last_analysis_time = current_time
             
             # Display frame (optional, for debugging)
             cv2.imshow(f'AI Coach - {activity}', frame)
