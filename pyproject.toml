@@ -1,0 +1,13 @@
+[project]
+name = "fr8-ai-coach"
+version = "0.1.0"
+description = "Real-time AI coaching backend with video capture and voice feedback"
+dependencies = [
+    "opencv-python",
+    "google-generativeai",
+    "python-dotenv",
+]
+
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
