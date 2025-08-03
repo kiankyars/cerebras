@@ -49,7 +49,6 @@ FEEDBACK:
 {analysis_section}
 - ALWAYS be direct
 - NO timestamps
-- Response length: MAX {config.get('max_response_length', 10)} words STRICTLY ENFORCED
 """
     print(base_prompt)
     # quit()
@@ -87,7 +86,7 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
                 ),
                 video_metadata=types.VideoMetadata(fps=fps)
             ),
-            types.Part(text=f"{prompt_template}\n\nProvide your response in JSON format with a 'feedback' field containing your coaching advice.")
+            types.Part(text=prompt_template)
         ]
         
         # Generate content with video, metadata, and JSON response format
@@ -100,13 +99,21 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
                 max_output_tokens=max_output_tokens
             )
         )
-
-        if response.candidates:
-            # Parse JSON response
-            feedback_json = json.loads(response.candidates[0].content.parts[0].text)
-            return feedback_json
+        
+        # Extract and parse the JSON response
+        if response.candidates and len(response.candidates) > 0:
+            response_text = response.candidates[0].content.parts[0].text
+            try:
+                # Parse the JSON response
+                feedback_json = json.loads(response_text)
+                return feedback_json
+            except json.JSONDecodeError as e:
+                print(f"Error parsing JSON response: {e}")
+                print(f"Raw response: {response_text}")
+                return {"feedback": "Error parsing response"}
         else:
-            return {"feedback": "No feedback available"}
+            print("No candidates in response")
+            return {"feedback": "No response generated"}
             
     except Exception as e:
         print(f"Error in analysis: {e}")
