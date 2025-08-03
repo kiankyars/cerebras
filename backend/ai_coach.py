@@ -17,7 +17,6 @@ load_dotenv()
 
 # Configure Gemini API
 api_key = os.getenv("GEMINI_API_KEY")
-print(api_key)
 if not api_key:
     raise ValueError("GEMINI_API_KEY not found in environment variables")
 
@@ -102,22 +101,36 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
             )
         )
 
+        print(f"📦 Raw Gemini response type: {type(response)}")
+        print(f"📦 Raw Gemini response: {response}")
+        if hasattr(response, 'candidates'):
+            print(f"📄 Response has {len(response.candidates) if response.candidates else 0} candidates")
+        
         if response.candidates:
             # When response_mime_type is 'application/json', the response should be directly accessible
             candidate = response.candidates[0]
+            print(f"📋 Candidate: {candidate}")
             if hasattr(candidate, 'content'):
                 content = candidate.content
+                print(f"📎 Content: {content}")
+                print(f"📎 Content type: {type(content)}")
                 # If the content is already a dict-like object, return it directly
                 if isinstance(content, dict):
+                    print(f"✅ Content is dict: {content}")
                     return content
                 # If it's a string, try to parse it as JSON
                 elif isinstance(content, str):
+                    print(f"📝 Content is string: '{content}'")
                     if content.strip():
                         try:
-                            return json.loads(content)
-                        except json.JSONDecodeError:
+                            result = json.loads(content)
+                            print(f"✅ Successfully parsed JSON: {result}")
+                            return result
+                        except json.JSONDecodeError as e:
+                            print(f"⚠️ JSON parse error: {e}")
                             return {"feedback": content}
                     else:
+                        print(f"⚠️ Empty content string")
                         return {"feedback": "No feedback available"}
                 # If it's an object with parts, try to extract the text
                 elif hasattr(content, 'parts') and len(content.parts) > 0:
