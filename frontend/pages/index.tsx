@@ -279,13 +279,13 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-100">
       <Head>
-        <title>FR8 AI Coach</title>
+        <title>NED AI Coach</title>
         <meta name="description" content="Real-time AI coaching for sports and more" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
       
       <main className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-center mb-8">FR8 AI Coach</h1>
+        <h1 className="text-3xl font-bold text-center mb-8">NED AI Coach</h1>
         
         {/* Error Display */}
         {error && (

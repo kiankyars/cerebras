@@ -44,7 +44,8 @@ def create_system_prompt(config, fps):
 
     analysis_section = "\n".join(analysis_parts) if analysis_parts else "- Focus on my basic form"
 
-    base_prompt = f"""You are a real-time {activity} coach. Help me like you're Michael Jordan. FPS is {fps}.
+    coach = config.get('coach', 'an expert coach')
+    base_prompt = f"""You are a real-time {activity} coach. Help me like you're {coach}. FPS is {fps}.
 FEEDBACK:
 {analysis_section}
 - ALWAYS be direct

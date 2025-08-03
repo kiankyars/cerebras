@@ -1,1 +1,1 @@
-# Utils package for FR8 AI Coach backend
+# Utils package for NED AI Coach backend

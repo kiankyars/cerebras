@@ -1,4 +1,4 @@
-# FR8 AI Coach
+# NED
 
 Real-time AI coaching for sports, fitness, music, and more using computer vision and voice feedback.
 
@@ -12,7 +12,7 @@ Real-time AI coaching for sports, fitness, music, and more using computer vision
 ### 1. Clone & Setup Environment
 ```bash
 git clone <repository-url>
-cd FR8
+cd NED
 cp .env.example .env
 # Add your API keys to .env
 ```
@@ -150,7 +150,7 @@ curl http://localhost:8000/configs
 ## 📁 Project Structure
 
 ```
-FR8/
+NED/
 ├── backend/                 # Python FastAPI backend
 │   ├── app.py              # Main FastAPI application
 │   ├── ai_coach.py         # Core AI coaching logic

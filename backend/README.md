@@ -1,4 +1,4 @@
-# FR8 AI Coach Backend
+# NED
 
 ## Directory Structure
 
