@@ -51,6 +51,7 @@ FEEDBACK:
 {analysis_section}
 - ALWAYS be direct
 - NO timestamps
+- OUTPUT RESPONSE IS AT MOST {config["max_response_length"]} WORDS
 """
     print(base_prompt)
     # quit()
@@ -64,35 +65,16 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
         with open(video_file_path, 'rb') as f:
             video_bytes = f.read()
         
-        # Get max response length from config (convert words to approximate tokens)
-        max_response_words = config.get('max_response_length', 10)
-        max_output_tokens = max(100, max_response_words * 10)  # Minimum 100 tokens for meaningful response
-        
-        # Set thought token limit (internal reasoning tokens)
-        thinking_budget = 200  # Reduced to leave more room for output
-        
-        print(f"📈 Config max_response_length: {max_response_words} words → {max_output_tokens} tokens")
-        print(f"🧠 Thinking budget: {thinking_budget} tokens")
-        
         # Define JSON schema for feedback response
         feedback_schema = types.Schema(
             type="OBJECT",
             properties={
                 "feedback": types.Schema(
                     type="STRING",
-                    description=f"Coaching feedback limited to {max_response_words} words maximum"
                 )
             },
             required=["feedback"]
         )
-        
-        # Create parts with video and prompt
-        print(f"🚀 Calling Gemini API with {len(video_bytes)} bytes video...")
-        print(f"📝 Prompt text ({len(prompt_template)} chars):")
-        print(f"📝 {prompt_template}")
-        print(f"🎯 Max output tokens: {max_output_tokens}")
-        print(f"📹 Video FPS: {fps}")
-        
         parts = [
             types.Part(
                 inline_data=types.Blob(
@@ -115,11 +97,6 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
             config=types.GenerateContentConfig(
                 response_mime_type='application/json',
                 response_schema=feedback_schema,
-                max_output_tokens=max_output_tokens,
-                thinking_config=types.ThinkingConfig(
-                    include_thoughts=False,
-                    thinking_budget=thinking_budget
-                ),
                 media_resolution='MEDIA_RESOLUTION_LOW'  # 64 tokens/frame vs 256 tokens/frame
             )
         )
