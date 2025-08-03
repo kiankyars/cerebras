@@ -220,11 +220,15 @@ export default function Home() {
           console.log('  - Full base64 length:', base64.length);
           console.log('  - Base64 prefix:', base64.substring(0, 50));
           
-          const videoData = base64.split(',')[1]; // Remove data:video/webm;base64, prefix
+          // Split on 'base64,' specifically to handle codecs with commas
+          const base64Index = base64.indexOf('base64,');
+          const videoData = base64Index !== -1 ? base64.substring(base64Index + 7) : null;
           console.log('  - Video data length:', videoData ? videoData.length : 'null');
+          console.log('  - Base64 index found at:', base64Index);
           
-          if (!videoData || videoData.length < 10) {
-            console.error('❌ Video data too small or missing after base64 split');
+          if (!videoData || videoData.length < 1000) {
+            console.error('❌ Video data too small or missing after base64 extraction');
+            console.error('  - Base64 preview:', base64.substring(0, 100));
             return;
           }
           
