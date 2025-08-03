@@ -316,11 +316,11 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
     analysis_interval = 3  # seconds
     
     try:
-        # Initialize camera (this would need to be handled differently in production)
-        cap = cv2.VideoCapture(0)
-        if not cap.isOpened():
-            await websocket.send_json({"type": "error", "message": "Could not access camera"})
-            return
+        # Send confirmation that session is ready
+        await websocket.send_json({
+            "type": "ready", 
+            "message": "Live session ready for video analysis"
+        })
         
         while True:
             # Wait for client to send video data or commands
@@ -329,10 +329,17 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
                 message = json.loads(data)
                 
                 if message.get("type") == "analyze":
-                    # Capture and analyze segment
-                    temp_video_path = capture_live_segment(cap, analysis_interval)
-                    
-                    if temp_video_path:
+                    video_data = message.get("videoData")
+                    if video_data:
+                        # Save video data to temporary file
+                        import base64
+                        temp_video_path = f"temp_segments/live_{session_id}_{int(time.time())}.webm"
+                        os.makedirs("temp_segments", exist_ok=True)
+                        
+                        with open(temp_video_path, "wb") as f:
+                            f.write(base64.b64decode(video_data))
+                        
+                        # Analyze the video segment
                         feedback_json = analyze_video_with_gemini(temp_video_path, prompt_template, fps, config)
                         feedback_text = feedback_json.get("feedback", "No feedback available")
                         
@@ -348,6 +355,11 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
                         
                         # Clean up
                         os.unlink(temp_video_path)
+                    else:
+                        await websocket.send_json({
+                            "type": "error", 
+                            "message": "No video data received"
+                        })
                 
                 elif message.get("type") == "stop":
                     break
@@ -357,7 +369,8 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
             except WebSocketDisconnect:
                 break
         
-        cap.release()
+        # Session ended
+        print(f"Live session {session_id} ended")
     
     except Exception as e:
         await websocket.send_json({"type": "error", "message": str(e)})

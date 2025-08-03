@@ -177,8 +177,16 @@ export default function Home() {
     
     mediaRecorder.ondataavailable = async (event) => {
       if (event.data.size > 0 && sessionId) {
-        // Send analyze command via WebSocket
-        send({ type: 'analyze' });
+        // Convert blob to base64 and send via WebSocket
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64 = reader.result as string;
+          send({ 
+            type: 'analyze', 
+            videoData: base64.split(',')[1] // Remove data:video/webm;base64, prefix
+          });
+        };
+        reader.readAsDataURL(event.data);
       }
     };
     

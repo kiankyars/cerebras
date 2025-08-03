@@ -7,7 +7,6 @@ Real-time AI coaching for sports, fitness, music, and more using computer vision
 ### Prerequisites
 - Python 3.13+ with `uv` package manager
 - Node.js 18+ with `npm`
-- API Keys: `GEMINI_API_KEY` (required), `OPENAI_API_KEY` (optional)
 
 ### 1. Clone & Setup Environment
 ```bash
