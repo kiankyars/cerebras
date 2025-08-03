@@ -1,161 +1,226 @@
 import cv2
-import json
-import threading
 import time
-import queue
+from google import genai
 import os
-from google.generativeai import GenerativeModel
-import google.generativeai as genai
-from openai import OpenAI
-import base64
-import io
-from PIL import Image
+from dotenv import load_dotenv
+import argparse
+from tts_manager import TTSManager
+import tempfile
+import json
 
-class AICoach:
-    def __init__(self):
-        self.config = self.load_config()
-        self.setup_apis()
-        self.video_queue = queue.Queue(maxsize=10)
-        self.feedback_queue = queue.Queue()
-        self.running = True
-        
-    def load_config(self):
-        try:
-            with open('config.json', 'r') as f:
-                return json.load(f)
-        except FileNotFoundError:
-            return {
-                "activity": "basketball",
-                "goal": "improve form",
-                "focus_on": "basics",
-                "skill_level": "beginner",
-                "custom_prompt": ""
-            }
+# Load environment variables
+load_dotenv()
+
+# Configure Gemini API
+api_key = os.getenv("GEMINI_API_KEY")
+if not api_key:
+    raise ValueError("GEMINI_API_KEY not found in environment variables")
+
+# Initialize the new genai client
+client = genai.Client(api_key=api_key)
+
+def load_config(config_path="coach_config.json"):
+    """Load coaching configuration from JSON file"""
+    with open(config_path, 'r') as f:
+        return json.load(f)
+
+def create_system_prompt(config):
+    """Create system prompt from config (under 200 words)"""
+    activity = config["activity"]
+    goal = config["goal"]
+    focus_on = config["focus_on"]
+    skill_level = config["skill_level"]
+    custom_prompt = config["custom_prompt"]
     
-    def setup_apis(self):
-        # Setup Gemini
-        genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
-        self.gemini_model = GenerativeModel('gemini-1.5-flash')
-        
-        # Setup OpenAI for TTS
-        self.openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-        
-        # Build system prompt
-        self.system_prompt = f"""You are a real-time {self.config['activity']} coach. Analyze this video frame. 
+    base_prompt = f"""You are a real-time {activity} coach. Analyze this video frame.
 
 VALIDATION:
-- If wrong activity detected, say 'Wrong activity'
-- If no movement, say 'No movement detected' 
-- If poor visibility, say 'Poor visibility'
+- If wrong activity detected: "Wrong activity"
+- If no movement: "I don't see any movement" 
+- If poor lighting/camera: "I can't see you clearly"
 
-COACHING:
-- Provide specific form feedback for {self.config['activity']}
-- Focus on: {self.config['focus_on']}
-- Goal: {self.config['goal']}
-- Skill level: {self.config['skill_level']}
+ANALYSIS:
+- Goal: {goal}
+- Focus on: {focus_on}
+- Skill level: {skill_level}
+{f"- Custom focus: {custom_prompt}" if custom_prompt else ""}
 
-Keep responses under 50 words. Be encouraging but direct. Use 2-word max encouragement like 'Great form!' or 'Keep going!'"""
+FEEDBACK:
+- Provide specific form feedback
+- Keep under {config['max_response_length']} words
+- Be encouraging but direct
 
-    def capture_video(self):
-        cap = cv2.VideoCapture(0)
-        cap.set(cv2.CAP_PROP_FPS, 1)
+Respond immediately with validation or coaching feedback."""
+    
+    return base_prompt
+
+def create_video_from_frames(frames, fps=10):
+    """Create a temporary video file from frames"""
+    if not frames:
+        return None
+    
+    # Create temporary video file
+    temp_video = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False)
+    temp_video_path = temp_video.name
+    temp_video.close()
+    
+    # Get frame dimensions
+    height, width = frames[0].shape[:2]
+    
+    # Create video writer
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(temp_video_path, fourcc, fps, (width, height))
+    
+    # Write frames
+    for frame in frames:
+        out.write(frame)
+    
+    out.release()
+    return temp_video_path
+
+def analyze_video_with_gemini(video_path, prompt_template):
+    """Send video to Gemini API for analysis"""
+    try:
+        # Upload video file using Files API
+        video_file = client.files.upload(file=video_path)
         
-        frame_count = 0
-        while self.running:
+        # Wait for file to be processed
+        while video_file.state.name != "ACTIVE":
+            time.sleep(1)
+            video_file = client.files.get(name=video_file.name)
+        
+        # Generate content with video
+        response = client.models.generate_content(
+            model="gemini-2.0-flash-exp",
+            contents=[
+                video_file,
+                prompt_template
+            ]
+        )
+        
+        # Clean up video file
+        os.unlink(video_path)
+        
+        return response.candidates[0].content.parts[0].text if response.candidates else "No feedback available"
+    except Exception as e:
+        print(f"Error analyzing video with Gemini: {e}")
+        # Clean up video file on error
+        if os.path.exists(video_path):
+            os.unlink(video_path)
+        return "Error in analysis"
+
+def main(activity, video_source, tts_provider, config_path):
+    """Main function to capture video and provide real-time coaching"""
+    # Load configuration
+    config = load_config(config_path)
+    config["activity"] = activity  # Override with command line argument
+    
+    # Create system prompt from config
+    prompt_template = create_system_prompt(config)
+    
+    # Initialize TTS manager
+    tts_manager = TTSManager(provider=tts_provider)
+    
+    # Initialize video capture
+    if video_source == "webcam":
+        cap = cv2.VideoCapture(0)  # 0 for default webcam
+        source_name = "webcam"
+    else:
+        cap = cv2.VideoCapture(video_source)
+        source_name = video_source
+    
+    if not cap.isOpened():
+        print(f"Error: Could not open video source: {source_name}")
+        return
+    
+    print(f"AI Coach started for {activity} using {source_name} with {tts_provider} TTS. Press 'q' to quit.")
+    print(f"Goal: {config['goal']}")
+    print(f"Focus: {config['focus_on']}")
+    print(f"Skill level: {config['skill_level']}")
+    print(f"Analyzing video every {config['feedback_frequency']} seconds at 10fps...")
+    
+    frame_count = 0
+    last_analysis_time = 0
+    frames_buffer = []
+    analysis_interval = config['feedback_frequency']  # seconds
+    target_fps = 10
+    
+    try:
+        while True:
             ret, frame = cap.read()
+            
             if not ret:
+                print("Error: Could not read frame")
                 break
-                
+            
             frame_count += 1
-            if frame_count % 30 == 0:  # Process every 30th frame (1fps)
-                if not self.video_queue.full():
-                    self.video_queue.put(frame)
-                    
-        cap.release()
-
-    def analyze_frame(self, frame):
-        try:
-            # Convert frame to base64
-            _, buffer = cv2.imencode('.jpg', frame)
-            img_base64 = base64.b64encode(buffer).decode('utf-8')
+            current_time = time.time()
             
-            # Create prompt with user custom prompt
-            user_prompt = f"{self.config['custom_prompt']}\n\nAnalyze this frame:"
+            # Add frame to buffer (every 3 frames to get ~10fps from 30fps webcam)
+            if frame_count % 3 == 0:
+                frames_buffer.append(frame.copy())
             
-            # Send to Gemini
-            response = self.gemini_model.generate_content([
-                self.system_prompt,
-                user_prompt,
-                {"mime_type": "image/jpeg", "data": img_base64}
-            ])
-            
-            return response.text.strip()
-            
-        except Exception as e:
-            return f"Error analyzing frame: {str(e)}"
-
-    def text_to_speech(self, text):
-        try:
-            response = self.openai_client.audio.speech.create(
-                model="tts-1",
-                voice="alloy",
-                input=text
-            )
-            
-            # Save and play audio
-            with open("feedback.mp3", "wb") as f:
-                f.write(response.content)
-            
-            # Play audio (macOS)
-            os.system("afplay feedback.mp3")
-            
-        except Exception as e:
-            print(f"TTS Error: {str(e)}")
-
-    def process_feedback(self):
-        while self.running:
-            try:
-                feedback = self.feedback_queue.get(timeout=1)
-                if feedback:
-                    print(f"Coach: {feedback}")
-                    self.text_to_speech(feedback)
-            except queue.Empty:
-                continue
-
-    def main_loop(self):
-        print("AI Coach starting... Press 'q' to quit")
-        
-        # Start threads
-        video_thread = threading.Thread(target=self.capture_video)
-        feedback_thread = threading.Thread(target=self.process_feedback)
-        
-        video_thread.start()
-        feedback_thread.start()
-        
-        last_feedback_time = 0
-        feedback_interval = 3  # Minimum seconds between feedback
-        
-        while self.running:
-            try:
-                frame = self.video_queue.get(timeout=1)
-                current_time = time.time()
+            # Analyze every 15 seconds
+            if current_time - last_analysis_time >= analysis_interval and frames_buffer:
+                print(f"Analyzing {len(frames_buffer)} frames at {target_fps}fps...")
                 
-                if current_time - last_feedback_time >= feedback_interval:
-                    feedback = self.analyze_frame(frame)
-                    if feedback and not self.feedback_queue.full():
-                        self.feedback_queue.put(feedback)
-                        last_feedback_time = current_time
-                        
-            except queue.Empty:
-                continue
-            except KeyboardInterrupt:
+                # Create video from frames
+                video_path = create_video_from_frames(frames_buffer, target_fps)
+                if video_path:
+                    # Analyze video with Gemini
+                    feedback = analyze_video_with_gemini(video_path, prompt_template)
+                    print(f"Analysis result: {feedback}")
+                    
+                    # Add feedback to audio queue
+                    tts_manager.add_to_queue(feedback)
+                    
+                    # Clear buffer
+                    frames_buffer = []
+                    last_analysis_time = current_time
+            
+            # Display frame (optional, for debugging)
+            cv2.imshow(f'AI Coach - {activity}', frame)
+            
+            # Check for quit key
+            if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
                 
-        self.running = False
-        video_thread.join()
-        feedback_thread.join()
-        print("AI Coach stopped")
+    except KeyboardInterrupt:
+        print("Interrupted by user")
+    
+    # Clean up
+    cap.release()
+    cv2.destroyAllWindows()
+    tts_manager.stop()
+    
+    print("AI Coach stopped.")
 
 if __name__ == "__main__":
-    coach = AICoach()
-    coach.main_loop()
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description="Real-time AI Coach")
+    parser.add_argument(
+        "--activity", 
+        choices=["basketball", "yoga", "guitar"], 
+        default="basketball",
+        help="Activity to coach (default: basketball)"
+    )
+    parser.add_argument(
+        "--video-source", 
+        default="webcam",
+        help="Video source: 'webcam' for camera input, or path to video file (default: webcam)"
+    )
+    parser.add_argument(
+        "--tts-provider",
+        choices=["gemini", "chatgpt"],
+        default="gemini",
+        help="TTS provider to use (default: gemini)"
+    )
+    
+    parser.add_argument(
+        "--config",
+        default="coach_config.json",
+        help="Path to coaching configuration file (default: coach_config.json)"
+    )
+    
+    args = parser.parse_args()
+    main(args.activity, args.video_source, args.tts_provider, args.config)

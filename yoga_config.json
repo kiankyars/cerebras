@@ -1,0 +1,10 @@
+{
+  "activity": "yoga",
+  "goal": "Improve flexibility and balance",
+  "focus_on": "proper alignment and breathing",
+  "skill_level": "intermediate",
+  "custom_prompt": "Check my spine alignment and hip positioning",
+  "encouragement_style": "calm",
+  "feedback_frequency": 20,
+  "max_response_length": 60
+} 

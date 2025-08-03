@@ -1,0 +1,11 @@
+{
+    
+  "activity": "basketball",
+  "goal": "Improve shooting accuracy",
+  "focus_on": "form and follow-through",
+  "skill_level": "beginner",
+  "custom_prompt": "Focus on my shooting arc and release point",
+  "encouragement_style": "motivational",
+  "feedback_frequency": 15,
+  "max_response_length": 50
+} 
