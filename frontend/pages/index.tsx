@@ -178,9 +178,29 @@ export default function Home() {
     }
     
     console.log('📹 Creating MediaRecorder...');
-    const mediaRecorder = new MediaRecorder(streamRef.current);
+    console.log('Available MediaRecorder options:', MediaRecorder.isTypeSupported('video/webm'));
+    
+    // Try different MediaRecorder options
+    let mediaRecorder;
+    try {
+      // First try with explicit codec
+      if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
+        console.log('Using video/webm;codecs=vp8');
+        mediaRecorder = new MediaRecorder(streamRef.current, {
+          mimeType: 'video/webm;codecs=vp8',
+          videoBitsPerSecond: 250000
+        });
+      } else {
+        console.log('Using default MediaRecorder settings');
+        mediaRecorder = new MediaRecorder(streamRef.current);
+      }
+    } catch (error) {
+      console.error('Failed to create MediaRecorder with options, trying default:', error);
+      mediaRecorder = new MediaRecorder(streamRef.current);
+    }
+    
     mediaRecorderRef.current = mediaRecorder;
-    console.log('✅ MediaRecorder created');
+    console.log('✅ MediaRecorder created with mimeType:', mediaRecorder.mimeType);
     
     mediaRecorder.ondataavailable = async (event) => {
       console.log('📊 MediaRecorder data available:');
