@@ -4,5 +4,6 @@
   "focus_on": "proper alignment and breathing",
   "skill_level": "intermediate",
   "feedback_frequency": 20,
+  "fps": 2,
   "max_response_length": 60
 } 

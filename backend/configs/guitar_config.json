@@ -4,5 +4,6 @@
   "focus_on": "finger positioning and strumming technique",
   "skill_level": "beginner",
   "feedback_frequency": 12,
+  "fps": 3,
   "max_response_length": 45
 } 

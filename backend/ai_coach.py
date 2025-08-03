@@ -55,12 +55,16 @@ FEEDBACK:
     # quit()
     return base_prompt
 
-def analyze_video_with_gemini(video_file_path, prompt_template, fps):
+def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
     """Send video file to Gemini API for analysis, returns JSON format"""
     try:
         # Read video file as bytes
         with open(video_file_path, 'rb') as f:
             video_bytes = f.read()
+        
+        # Get max response length from config (convert words to approximate tokens)
+        max_response_words = config.get('max_response_length', 10)
+        max_output_tokens = max_response_words * 2  # Rough approximation: 1 word ≈ 2 tokens
         
         # Define JSON schema for feedback response
         feedback_schema = types.Schema(
@@ -68,7 +72,7 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps):
             properties={
                 "feedback": types.Schema(
                     type="STRING",
-                    description="Coaching feedback for the activity"
+                    description=f"Coaching feedback limited to {max_response_words} words maximum"
                 )
             },
             required=["feedback"]
@@ -92,7 +96,8 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps):
             contents=types.Content(parts=parts),
             config=types.GenerateContentConfig(
                 response_mime_type='application/json',
-                response_schema=feedback_schema
+                response_schema=feedback_schema,
+                max_output_tokens=max_output_tokens
             )
         )
 
@@ -262,7 +267,7 @@ def main(activity, video_source, tts_provider, config_path):
 
                 if temp_video_path:
                     print("Analyzing live segment...")
-                    feedback_json = analyze_video_with_gemini(temp_video_path, prompt_template, fps)
+                    feedback_json = analyze_video_with_gemini(temp_video_path, prompt_template, fps, config)
                     feedback_text = feedback_json.get("feedback", "No feedback available")
                     print(f"Analysis result: {feedback_json}")
 
@@ -293,7 +298,7 @@ def main(activity, video_source, tts_provider, config_path):
             for segment_file, start_time, duration in segment_files:
                 print(f"Analyzing segment: {start_time}s-{start_time + duration}s")
                 
-                feedback_json = analyze_video_with_gemini(segment_file, prompt_template, fps)
+                feedback_json = analyze_video_with_gemini(segment_file, prompt_template, fps, config)
                 feedback_text = feedback_json.get("feedback", "No feedback available")
                 print(f"Analysis result: {feedback_json}")
 
