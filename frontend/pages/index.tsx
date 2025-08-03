@@ -426,7 +426,6 @@ export default function Home() {
         {/* Header */}
         <div className="text-center mb-10">
           <h1 className="text-3xl font-bold text-white mb-3">NED</h1>
-          <p className="text-blue-200 text-base">NED</p>
         </div>
 
         {/* Error Display */}

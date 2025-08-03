@@ -51,7 +51,7 @@ FEEDBACK:
 - ALWAYS be direct
 - NO timestamps
 - OUTPUT RESPONSE IS AT MOST {config["max_response_length"]} WORDS
-- NEVER LEAVE FORMATTING
+- REMOVE JSON FORMATTING
 """
     print(base_prompt)
     # quit()
