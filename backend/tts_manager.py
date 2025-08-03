@@ -25,10 +25,12 @@ class GeminiTTS(TTSProvider):
 
     def __init__(self):
         from google import genai
+        from google.genai import types
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             raise ValueError("GEMINI_API_KEY not found in environment variables")
         self.client = genai.Client(api_key=api_key)
+        self.types = types
 
     def speak_text(self, text: str) -> bool:
         try:
@@ -36,10 +38,10 @@ class GeminiTTS(TTSProvider):
             response = self.client.models.generate_content(
                 model="gemini-2.0-flash-exp",
                 contents=text,
-                config=self.client.types.GenerateContentConfig(
-                    speech_config=self.client.types.SpeechConfig(
-                        voice_config=self.client.types.VoiceConfig(
-                            prebuilt_voice_config=self.client.types.PrebuiltVoiceConfig(
+                config=self.types.GenerateContentConfig(
+                    speech_config=self.types.SpeechConfig(
+                        voice_config=self.types.VoiceConfig(
+                            prebuilt_voice_config=self.types.PrebuiltVoiceConfig(
                                 voice_name='Kore',
                             )
                         )
