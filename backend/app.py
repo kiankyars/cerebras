@@ -311,8 +311,8 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
     config = config_manager.load_config_by_path(session["config_path"])
     tts_provider = session["tts_provider"]
     
-            # TTS handled by frontend browser, no backend TTS needed
-        # tts_manager = TTSManager(provider=tts_provider, mode="live")
+    # Initialize TTS manager for live mode
+    tts_manager = TTSManager(provider=tts_provider, mode="live")
     
     # Create prompt
     fps = config.get('fps', 30)
@@ -341,8 +341,8 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
                         # Save video data to temporary file
                         import base64
                         import time
-                        temp_video_path = f"temp_segments/live_{session_id}_{int(time.time())}.webm"
-                        os.makedirs("temp_segments", exist_ok=True)
+                        temp_video_path = f"data/live_{session_id}_{int(time.time())}.webm"
+                        os.makedirs("data", exist_ok=True)
                         print(f"💾 Saving video to: {temp_video_path}")
                         
                         try:
@@ -375,8 +375,13 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
                             })
                             print(f"📤 Feedback sent via WebSocket")
                             
-                            # Audio is handled by frontend browser TTS, not backend
-                            print(f"🔊 Audio will be played by frontend browser TTS")
+                            # Play audio feedback only if not an error
+                            is_error = feedback_text.startswith("Error in") or "error" in feedback_text.lower()
+                            if not is_error:
+                                tts_manager.add_to_queue(feedback_text)
+                                print(f"🔊 Added to TTS queue")
+                            else:
+                                print(f"⚠️ Skipping TTS for error message")
                             
                             # Clean up
                             os.unlink(temp_video_path)

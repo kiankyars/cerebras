@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import Head from 'next/head';
 import FeedbackOverlay from '../components/FeedbackOverlay';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { useAudio } from '../hooks/useAudio';
+// import { useAudio } from '../hooks/useAudio'; // REMOVED: Backend handles TTS
 import { useWebSocket } from '../hooks/useWebSocket';
 import config from '../lib/config';
 
@@ -28,7 +28,7 @@ export default function Home() {
   const timeIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   // Hooks
-  const { initializeAudio, playTextToSpeech, stopAudio } = useAudio();
+  // const { initializeAudio, playTextToSpeech, stopAudio } = useAudio(); // REMOVED: Backend handles TTS
   const { connect, send, disconnect } = useWebSocket();
   
   // Fetch available configs on mount
@@ -105,8 +105,7 @@ export default function Home() {
     setIsLoading(true);
     setError('');
     try {
-      // Initialize audio first
-      await initializeAudio();
+      // Audio initialization removed - backend handles TTS
       
       const response = await fetch(`${config.apiUrl}/sessions/live`, {
         method: 'POST',
@@ -128,7 +127,7 @@ export default function Home() {
         if (message.type === 'feedback' && message.text) {
           setFeedback(message.text);
           // Play audio feedback
-          playTextToSpeech(message.text);
+          // playTextToSpeech(message.text); // REMOVED: Backend handles TTS
         } else if (message.type === 'error') {
           setError(`Error: ${message.message}`);
         }
@@ -161,7 +160,7 @@ export default function Home() {
   const stopLiveSession = async () => {
     disconnect();
     stopCamera();
-    stopAudio();
+          // stopAudio(); // REMOVED: Backend handles TTS
     
     if (timeIntervalRef.current) {
       clearInterval(timeIntervalRef.current);

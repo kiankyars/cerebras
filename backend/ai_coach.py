@@ -64,7 +64,7 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
     if use_openrouter:
         return analyze_video_with_openrouter(video_file_path, prompt_template, fps, config)
     else:
-        return analyze_video_with_direct_gemini(video_file_path, prompt_template, fps, config)
+        return analyze_video_with_gemini(video_file_path, prompt_template, fps, config)
 
 def analyze_video_with_openrouter(video_file_path, prompt_template, fps, config):
     """Analyze video using Gemini 2.5 Pro via OpenRouter"""
@@ -148,7 +148,7 @@ def analyze_video_with_openrouter(video_file_path, prompt_template, fps, config)
         print(f"❌ Full traceback: {traceback.format_exc()}")
         return {"feedback": f"Error in OpenRouter analysis: {str(e)}"}
 
-def analyze_video_with_direct_gemini(video_file_path, prompt_template, fps, config):
+def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
     """Analyze video using direct Gemini API"""
     try:
         print(f"🚀 Using Direct Gemini API for analysis...")
