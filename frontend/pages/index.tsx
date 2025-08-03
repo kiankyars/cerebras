@@ -357,9 +357,8 @@ export default function Home() {
       soccer: '⚽',
       yoga: '🧘‍♀️',
       guitar: '🎸',
-      cooking: '👨‍🍳',
-      sleep: '😴',
       sandwich: '🥪',
+      sleep: '😴',
       hurdles: '🏃‍♀️',
       paddle_ball: '🏓',
       plyometrics: '💪'
