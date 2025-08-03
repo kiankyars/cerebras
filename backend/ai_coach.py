@@ -63,6 +63,7 @@ FEEDBACK:
 - NO timestamps
 - OUTPUT RESPONSE IS AT MOST {config["max_response_length"]} WORDS
 - VOICE STYLE: {voice_instruction}
+- NO FORMATTING
 """
     print(base_prompt)
     # quit()

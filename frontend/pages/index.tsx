@@ -16,7 +16,7 @@ export default function Home() {
   const [configs, setConfigs] = useState<any[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [selectedConfig, setSelectedConfig] = useState<string>('basketball');
+  const [selectedConfig, setSelectedConfig] = useState<string>('');
   const [selectedTTSProvider, setSelectedTTSProvider] = useState<string>('chatgpt');
   const [selectedVoiceStyle, setSelectedVoiceStyle] = useState<string>('cheerful');
   const [timeElapsed, setTimeElapsed] = useState<number>(0);
@@ -79,6 +79,7 @@ export default function Home() {
         setSelectedConfig(data.configs[0].id);
         setSelectedCategory(data.configs[0].category);
       }
+      
     } catch (error) {
       console.error('Error fetching configs:', error);
       setError('Failed to load coaching configurations. Please check your connection.');
@@ -133,6 +134,7 @@ export default function Home() {
     setIsLoading(true);
     setError('');
     try {
+      console.log('Sending config_id:', selectedConfig);
       const response = await fetch(`${config.apiUrl}/sessions/live`, {
         method: 'POST',
         headers: {
@@ -142,6 +144,8 @@ export default function Home() {
       });
       
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Response error:', errorText);
         throw new Error(`Failed to start session: ${response.statusText}`);
       }
       
@@ -265,6 +269,10 @@ export default function Home() {
   
   const handleStart = async () => {
     if (mode === 'live') {
+      if (!selectedConfig) {
+        setError('Please select an activity first');
+        return;
+      }
       const sessionData = await startLiveSession();
       if (sessionData) {
         startRecording(sessionData.session_id);
@@ -352,21 +360,18 @@ export default function Home() {
   };
 
   const getActivityIcon = (activity: string) => {
-    console.log('Activity ID:', activity);
     const icons: { [key: string]: string } = {
-      basketball: '🏀',
-      soccer: '⚽',
-      yoga: '🧘‍♀️',
-      guitar: '🎸',
-      sandwich: '🥪',
-      sleep: '😴',
-      hurdles: '🏃‍♀️',
-      paddle_ball: '🎾',
-      plyometrics: '💪'
+      basketball_config: '🏀',
+      soccer_config: '⚽',
+      yoga_config: '🧘‍♀️',
+      guitar_config: '🎸',
+      sandwich_config: '🥪',
+      sleep_config: '😴',
+      hurdles_config: '🏃‍♂️',
+      paddle_ball_config: '🏓',
+      plyometrics_config: '💪'
     };
-    console.log('Available icon keys:', Object.keys(icons));
-    console.log('Icon found:', icons[activity]);
-    return icons[activity] || '📋';
+    return icons[activity] || '🎯';
   };
 
   const getVoiceIcon = (provider: string) => {
@@ -383,7 +388,7 @@ export default function Home() {
 
   const filteredConfigs = selectedCategory 
     ? configs.filter(config => config.category === selectedCategory)
-    : configs;
+    : [];
 
   const selectedConfigData = configs.find(c => c.id === selectedConfig);
   
@@ -395,31 +400,32 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       
-      <main className="container mx-auto px-4 py-6 max-w-md">
+      <main className="container mx-auto px-6 py-8 max-w-lg">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-white mb-2">NED</h1>
+        <div className="text-center mb-10">
+          <h1 className="text-3xl font-bold text-white mb-3">NED</h1>
+          <p className="text-blue-200 text-base">AI Coaching Assistant</p>
         </div>
 
         {/* Error Display */}
         {error && (
-          <div className="mb-4 p-3 bg-red-500/20 border border-red-400 rounded-lg text-red-200 text-sm text-center">
+          <div className="mb-6 p-4 bg-red-500/20 border border-red-400 rounded-lg text-red-200 text-sm text-center">
             {error}
           </div>
         )}
 
         {/* Loading Display */}
         {isLoading && (
-          <div className="mb-4 text-center">
+          <div className="mb-6 text-center">
             <LoadingSpinner text="Loading..." />
           </div>
         )}
 
         {/* Mode Selection Tabs */}
-        <div className="flex bg-blue-800/50 rounded-lg p-1 mb-6">
+        <div className="flex bg-blue-800/50 rounded-lg p-1 mb-8">
           <button
             type="button"
-            className={`flex-1 py-3 px-4 text-sm font-medium rounded-md transition-colors ${
+            className={`flex-1 py-4 px-6 text-base font-medium rounded-md transition-colors ${
               mode === 'live' 
                 ? 'bg-blue-600 text-white shadow-sm' 
                 : 'text-blue-200 hover:text-white'
@@ -430,7 +436,7 @@ export default function Home() {
           </button>
           <button
             type="button"
-            className={`flex-1 py-3 px-4 text-sm font-medium rounded-md transition-colors ${
+            className={`flex-1 py-4 px-6 text-base font-medium rounded-md transition-colors ${
               mode === 'upload' 
                 ? 'bg-blue-600 text-white shadow-sm' 
                 : 'text-blue-200 hover:text-white'
@@ -442,40 +448,60 @@ export default function Home() {
         </div>
 
         {/* Activity Selection */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-blue-200 mb-3">
-            Select Activity:
+        <div className="mb-8">
+          <label className="block text-base font-medium text-blue-200 mb-4">
+            Select Category:
           </label>
           <button
-            onClick={() => setShowActivityModal(true)}
-            className="w-full bg-blue-800/50 border border-blue-600/50 rounded-lg p-4 flex items-center justify-between text-left hover:bg-blue-700/50 transition-colors"
+            onClick={() => setShowCategoryModal(true)}
+            className="w-full bg-blue-800/50 border border-blue-600/50 rounded-lg p-5 flex items-center justify-between text-left hover:bg-blue-700/50 transition-colors"
           >
-            <div className="flex items-center space-x-3">
-              <span className="text-xl">{getActivityIcon(selectedConfig)}</span>
-              <span className="text-white font-medium">
-                {selectedConfigData?.name || selectedConfig}
+            <div className="flex items-center space-x-4">
+              <span className="text-2xl">{getCategoryIcon(selectedCategory)}</span>
+              <span className="text-white font-medium text-lg">
+                {selectedCategory ? selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1) : 'Select Category'}
               </span>
             </div>
-            <span className="text-blue-300">›</span>
+            <span className="text-blue-300 text-xl">›</span>
           </button>
         </div>
 
+        {selectedCategory && (
+          <div className="mb-8">
+            <label className="block text-base font-medium text-blue-200 mb-4">
+              Select Activity:
+            </label>
+            <button
+              onClick={() => setShowActivityModal(true)}
+              className="w-full bg-blue-800/50 border border-blue-600/50 rounded-lg p-5 flex items-center justify-between text-left hover:bg-blue-700/50 transition-colors"
+            >
+              <div className="flex items-center space-x-4">
+                <span className="text-2xl">{getActivityIcon(selectedConfig)}</span>
+                <span className="text-white font-medium text-lg">
+                  {selectedConfigData?.name || selectedConfig}
+                </span>
+              </div>
+              <span className="text-blue-300 text-xl">›</span>
+            </button>
+          </div>
+        )}
+
         {/* Voice Style Selection */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-blue-200 mb-3">
+        <div className="mb-8">
+          <label className="block text-base font-medium text-blue-200 mb-4">
             Voice Style:
           </label>
           <button
             onClick={() => setShowVoiceModal(true)}
-            className="w-full bg-blue-800/50 border border-blue-600/50 rounded-lg p-4 flex items-center justify-between text-left hover:bg-blue-700/50 transition-colors"
+            className="w-full bg-blue-800/50 border border-blue-600/50 rounded-lg p-5 flex items-center justify-between text-left hover:bg-blue-700/50 transition-colors"
           >
-            <div className="flex items-center space-x-3">
-              <span className="text-xl">{getSelectedVoiceStyle().icon}</span>
-              <span className="text-white font-medium">
-                {getSelectedVoiceStyle().name}
+            <div className="flex items-center space-x-4">
+              <span className="text-2xl">{getVoiceIcon(selectedTTSProvider)}</span>
+              <span className="text-white font-medium text-lg">
+                {getVoiceName(selectedTTSProvider)}
               </span>
             </div>
-            <span className="text-blue-300">›</span>
+            <span className="text-blue-300 text-xl">›</span>
           </button>
         </div>
 
@@ -483,7 +509,7 @@ export default function Home() {
         {mode === 'live' && (
           <div className="text-center">
             {/* Video Container */}
-            <div className="relative mb-6">
+            <div className="relative mb-8">
               <video
                 ref={videoRef}
                 autoPlay
@@ -506,11 +532,11 @@ export default function Home() {
               {/* Time and Status Overlay */}
               {isRecording && (
                 <div className="absolute bottom-4 left-4 right-4 text-center">
-                  <div className="bg-black/50 backdrop-blur-sm rounded-lg p-3">
-                    <div className="text-white font-mono text-lg mb-1">
+                  <div className="bg-black/50 backdrop-blur-sm rounded-lg p-4">
+                    <div className="text-white font-mono text-xl mb-2">
                       Time: {formatTime(timeElapsed)}
                     </div>
-                    <div className="text-blue-200 text-sm">
+                    <div className="text-blue-200 text-base">
                       {feedback || 'Analyzing your movements...'}
                     </div>
                   </div>
@@ -519,19 +545,19 @@ export default function Home() {
             </div>
             
             {/* Control Button */}
-            <div className="mt-6">
+            <div className="mt-8">
               {!isRecording ? (
                 <button
                   onClick={handleStart}
-                  disabled={isLoading}
-                  className="w-full py-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                  disabled={isLoading || !selectedConfig}
+                  className="w-full py-5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg text-lg"
                 >
-                  {isLoading ? 'Starting...' : 'Start Live Coaching'}
+                  {isLoading ? 'Starting...' : !selectedConfig ? 'Select Activity First' : 'Start Live Coaching'}
                 </button>
               ) : (
                 <button
                   onClick={handleStop}
-                  className="w-full py-4 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 shadow-lg"
+                  className="w-full py-5 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 shadow-lg text-lg"
                 >
                   End Session
                 </button>
@@ -543,8 +569,8 @@ export default function Home() {
         {/* Upload Mode */}
         {mode === 'upload' && (
           <div className="text-center">
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-blue-200 mb-3">
+            <div className="mb-8">
+              <label className="block text-base font-medium text-blue-200 mb-4">
                 Upload Video:
               </label>
               <input
@@ -552,35 +578,35 @@ export default function Home() {
                 accept="video/*"
                 onChange={handleVideoUpload}
                 disabled={isLoading}
-                className="block w-full text-sm text-gray-400
-                  file:mr-4 file:py-3 file:px-4
+                className="block w-full text-base text-gray-400
+                  file:mr-4 file:py-4 file:px-6
                   file:rounded-lg file:border-0
-                  file:text-sm file:font-semibold
+                  file:text-base file:font-semibold
                   file:bg-blue-600 file:text-white
                   hover:file:bg-blue-700
                   disabled:opacity-50 disabled:cursor-not-allowed
-                  bg-blue-800/50 border border-blue-600/50 rounded-lg p-3"
+                  bg-blue-800/50 border border-blue-600/50 rounded-lg p-4"
               />
             </div>
             
             {progress > 0 && (
-              <div className="mb-6">
-                <div className="w-full bg-blue-800/50 rounded-full h-3">
+              <div className="mb-8">
+                <div className="w-full bg-blue-800/50 rounded-full h-4">
                   <div 
-                    className="bg-blue-600 h-3 rounded-full transition-all duration-300" 
+                    className="bg-blue-600 h-4 rounded-full transition-all duration-300" 
                     style={{ width: `${progress}%` }}
                   ></div>
                 </div>
-                <p className="mt-2 text-sm text-blue-200">{Math.round(progress)}% complete</p>
+                <p className="mt-3 text-base text-blue-200">{Math.round(progress)}% complete</p>
               </div>
             )}
             
             {videoUrl && (
-              <div className="mt-6">
+              <div className="mt-8">
                 <a 
                   href={videoUrl} 
                   download
-                  className="w-full py-4 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shadow-lg block"
+                  className="w-full py-5 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shadow-lg block text-lg"
                 >
                   Download Coached Video
                 </a>
@@ -588,8 +614,8 @@ export default function Home() {
             )}
             
             {feedback && (
-              <div className="mt-6 p-4 bg-blue-800/50 rounded-lg border border-blue-600/50">
-                <p className="text-blue-200">{feedback}</p>
+              <div className="mt-8 p-5 bg-blue-800/50 rounded-lg border border-blue-600/50">
+                <p className="text-blue-200 text-base">{feedback}</p>
               </div>
             )}
           </div>
@@ -607,7 +633,7 @@ export default function Home() {
             >
               <h3 className="text-lg font-semibold text-white mb-4">Select Activity</h3>
               <div className="space-y-2">
-                {configs.map((config) => (
+                {filteredConfigs.map((config) => (
                   <button
                     key={config.id}
                     onClick={() => {
@@ -659,6 +685,43 @@ export default function Home() {
                   </button>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Category Selection Modal */}
+        {showCategoryModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-blue-900 rounded-lg p-6 w-80 max-h-96 overflow-y-auto">
+              <h3 className="text-lg font-semibold text-white mb-4">Select Category</h3>
+              <div className="space-y-2">
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => {
+                      setSelectedCategory(category);
+                      // Set first activity from this category as default
+                      const categoryConfigs = configs.filter(config => config.category === category);
+                      if (categoryConfigs.length > 0) {
+                        setSelectedConfig(categoryConfigs[0].id);
+                      }
+                      setShowCategoryModal(false);
+                    }}
+                    className="w-full p-3 text-left bg-blue-800/50 rounded-lg hover:bg-blue-700/50 transition-colors"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <span className="text-xl">{getCategoryIcon(category)}</span>
+                      <span className="text-white capitalize">{category}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setShowCategoryModal(false)}
+                className="mt-4 w-full py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         )}
