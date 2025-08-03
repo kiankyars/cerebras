@@ -16,6 +16,7 @@ export default function Home() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [configs, setConfigs] = useState<any[]>([]);
   const [selectedConfig, setSelectedConfig] = useState<string>('basketball');
+  const [selectedTTSProvider, setSelectedTTSProvider] = useState<string>('gemini');
   const [timeElapsed, setTimeElapsed] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
@@ -112,7 +113,7 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: `config_id=${selectedConfig}&tts_provider=gemini`
+        body: `config_id=${selectedConfig}&tts_provider=${selectedTTSProvider}`
       });
       
       if (!response.ok) {
@@ -234,7 +235,7 @@ export default function Home() {
       const formData = new FormData();
       formData.append('video', file);
       formData.append('config_id', selectedConfig);
-      formData.append('tts_provider', 'gemini');
+              formData.append('tts_provider', selectedTTSProvider);
       
       const response = await fetch(`${config.apiUrl}/sessions/upload`, {
         method: 'POST',
@@ -354,6 +355,22 @@ export default function Home() {
                 {config.name} ({config.category})
               </option>
             ))}
+          </select>
+        </div>
+        
+        {/* TTS Provider Selection */}
+        <div className="mb-6">
+          <label htmlFor="tts-select" className="block text-sm font-medium text-gray-700 mb-2">
+            Voice Provider:
+          </label>
+          <select
+            id="tts-select"
+            className="block w-full max-w-xs mx-auto rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            value={selectedTTSProvider}
+            onChange={(e) => setSelectedTTSProvider(e.target.value)}
+          >
+            <option value="gemini">Gemini TTS (Natural voice)</option>
+            <option value="chatgpt">ChatGPT TTS (Clear voice)</option>
           </select>
         </div>
         
