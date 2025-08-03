@@ -11,8 +11,8 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile, WebSocket, W
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from ai_coach import analyze_video_with_gemini, capture_live_segment, create_system_prompt, load_config, split_video_into_segments
-from tts_manager import TTSManager
+from .ai_coach import analyze_video_with_gemini, capture_live_segment, create_system_prompt, load_config, split_video_into_segments
+from .tts_manager import TTSManager
 
 app = FastAPI(title="FR8 AI Coach API", version="0.1.0")
 
