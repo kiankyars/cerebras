@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -43,41 +44,33 @@ def create_system_prompt(config, fps):
 
     analysis_section = "\n".join(analysis_parts) if analysis_parts else "- Focus on my basic form"
 
-    base_prompt = f"""You are a real-time {activity} coach. Help me like you're Michael Jordan. The video is {fps}fps.
+    base_prompt = f"""You are a real-time {activity} coach. Help me like you're Michael Jordan. FPS is {fps}.
 
-Notify me if wrong activity, no movement, or poor lighting detected.
+# Notify me if wrong activity.
 
 FEEDBACK:
 {analysis_section}
-- Keep under {config.get('max_response_length', 10)} words
-- ALWAYS Be direct"""
+- ALWAYS under {config.get('max_response_length', 10)} words
+- ALWAYS be direct
+- NO timestamps"""
     print(base_prompt)
     # quit()
     return base_prompt
 
-def analyze_video_with_gemini(video_file_path, prompt_template, fps, start_offset=None, end_offset=None):
-    """Send video file to Gemini API for analysis with optional time offsets"""
+def analyze_video_with_gemini(video_file_path, prompt_template, fps):
+    """Send video file to Gemini API for analysis"""
     try:
         # Read video file as bytes
         with open(video_file_path, 'rb') as f:
             video_bytes = f.read()
-
-        # Create video metadata - always include FPS
-        video_metadata = types.VideoMetadata(fps=fps)
-
-        # Add time offsets for upload videos
-        if start_offset is not None and end_offset is not None:
-            video_metadata.start_offset = f"{start_offset}s"
-            video_metadata.end_offset = f"{end_offset}s"
-
-        # Create base parts with video metadata
+        # Create parts with video and prompt
         parts = [
             types.Part(
                 inline_data=types.Blob(
                     data=video_bytes,
                     mime_type='video/mp4'
                 ),
-                video_metadata=video_metadata
+                video_metadata=types.VideoMetadata(fps=fps)
             ),
             types.Part(text=prompt_template)
         ]
@@ -90,11 +83,11 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, start_offse
 
         return response.candidates[0].content.parts[0].text if response.candidates else "No feedback available"
     except Exception as e:
-        print(f"Analysis error: {e}")
+        print(e)
         return "Error in analysis"
 
 def capture_live_segment(cap, duration_seconds):
-    """Capture live video segment to temporary file and return path with FPS"""
+    """Capture live video segment to temporary file and return path"""
     try:
         # Get actual FPS from video capture
         actual_fps = cap.get(cv2.CAP_PROP_FPS)
@@ -135,6 +128,92 @@ def capture_live_segment(cap, duration_seconds):
     except Exception as e:
         print(f"Error capturing live segment: {e}")
         return None
+
+def split_video_into_segments(input_video_path, segment_duration, output_dir="data"):
+    """Split video into segments using FFmpeg - ONLY complete segments"""
+    try:
+        # Check if ffmpeg is available
+        try:
+            subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            print("Error: FFmpeg not found. Please install FFmpeg.")
+            return []
+
+        # Create output directory
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Get video duration first
+        probe_cmd = [
+            "ffprobe", "-v", "quiet", "-print_format", "json", 
+            "-show_format", input_video_path
+        ]
+        
+        result = subprocess.run(probe_cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            print(f"Error probing video: {result.stderr}")
+            return []
+        
+        import json
+        video_info = json.loads(result.stdout)
+        total_duration = float(video_info['format']['duration'])
+        
+        # Calculate segments including the last one with remaining time
+        num_complete_segments = int(total_duration // segment_duration)
+        remaining_time = total_duration % segment_duration
+        
+        print(f"Video duration: {total_duration:.1f}s")
+        print(f"Processing {num_complete_segments} complete {segment_duration}s segments")
+        if remaining_time > 0:
+            print(f"Including final {remaining_time:.1f}s segment")
+        
+        segment_files = []
+        
+        # Split into complete segments
+        for i in range(num_complete_segments):
+            start_time = i * segment_duration
+            output_file = f"{output_dir}/segment_{i:03d}.mp4"
+            
+            cmd = [
+                "ffmpeg", "-y", "-i", input_video_path,
+                "-ss", str(start_time),
+                "-t", str(segment_duration),
+                "-c", "copy",  # Copy without re-encoding for speed
+                output_file
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode == 0:
+                segment_files.append((output_file, start_time, segment_duration))
+                print(f"Created segment {i+1}: {start_time}s-{start_time + segment_duration}s")
+            else:
+                print(f"Error creating segment {i}: {result.stderr}")
+        
+        # Add the final segment if there's remaining time
+        if remaining_time > 0:
+            i = num_complete_segments
+            start_time = i * segment_duration
+            output_file = f"{output_dir}/segment_{i:03d}.mp4"
+            
+            cmd = [
+                "ffmpeg", "-y", "-i", input_video_path,
+                "-ss", str(start_time),
+                "-t", str(remaining_time),
+                "-c", "copy",
+                output_file
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode == 0:
+                segment_files.append((output_file, start_time, remaining_time))
+                print(f"Created final segment: {start_time}s-{start_time + remaining_time}s")
+            else:
+                print(f"Error creating final segment: {result.stderr}")
+        
+        return segment_files
+        
+    except Exception as e:
+        print(f"Error splitting video: {e}")
+        return []
 
 def main(activity, video_source, tts_provider, config_path):
     """Main function to capture video and provide real-time coaching"""
@@ -191,47 +270,36 @@ def main(activity, video_source, tts_provider, config_path):
                     print("Failed to capture live segment")
 
         else:
-            # UPLOAD VIDEO WORKFLOW - Audio overlay into final video
+            # UPLOAD VIDEO WORKFLOW - Split into segments and analyze each
             print("Starting upload video analysis...")
 
             # Initialize TTS manager for video overlay
             tts_manager = TTSManager(provider=tts_provider, mode="video")
 
-            # Get video properties for proper duration handling
-            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            video_fps = cap.get(cv2.CAP_PROP_FPS)
-            video_duration = total_frames / video_fps
+            # Split video into segments using FFmpeg
+            print(f"Splitting video into {analysis_interval}s segments...")
+            segment_files = split_video_into_segments(video_source, analysis_interval)
 
-            print(f"Video: {video_duration:.1f}s duration, {total_frames} frames at {video_fps}fps")
+            if not segment_files:
+                print("Failed to split video into segments")
+                return
 
-            # Calculate segments based on video duration
-            num_complete_segments = int(video_duration // analysis_interval)
-            remaining_time = video_duration % analysis_interval
-
-            # Process complete segments
-            for segment_num in range(1, num_complete_segments + 1):
-                start_time = (segment_num - 1) * analysis_interval
-                end_time = segment_num * analysis_interval
-
-                print(f"Analyzing segment {segment_num}: {start_time}s to {end_time}s")
-
-                feedback = analyze_video_with_gemini(video_source, prompt_template, fps, start_time, end_time)
+            # Analyze each segment
+            for segment_file, start_time, duration in segment_files:
+                print(f"Analyzing segment: {start_time}s-{start_time + duration}s")
+                
+                feedback = analyze_video_with_gemini(segment_file, prompt_template, fps)
                 print(f"Analysis result: {feedback}")
 
-                # Add feedback to TTS manager with timestamp
-                tts_manager.add_to_queue(feedback, start_time)
+                # Add feedback to TTS manager with proper timing
+                tts_manager.add_to_queue(feedback, start_time, duration)
 
-            # Process remaining partial segment if exists
-            if remaining_time > 5:  # Only if significant remaining time
-                start_time = num_complete_segments * analysis_interval
-                end_time = video_duration
-
-                print(f"Analyzing final segment: {start_time}s to {end_time:.1f}s")
-
-                feedback = analyze_video_with_gemini(video_source, prompt_template, fps, start_time, end_time)
-                print(f"Analysis result: {feedback}")
-
-                tts_manager.add_to_queue(feedback, start_time)
+            # Clean up segment files
+            for segment_file, _, _ in segment_files:
+                try:
+                    os.unlink(segment_file)
+                except OSError:
+                    pass
 
             # Create output video with audio overlay
             output_path = f"data/coached_{activity}_{Path(video_source).stem}.mp4"
@@ -247,9 +315,9 @@ def main(activity, video_source, tts_provider, config_path):
         print("Interrupted by user")
 
     # Clean up
-    cap.release()
-    cv2.destroyAllWindows()
-    tts_manager.stop()
+    if is_live_stream:
+        cap.release()
+        cv2.destroyAllWindows()
 
     print("AI Coach stopped.")
 
@@ -259,7 +327,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Real-time AI Coach")
     parser.add_argument(
         "--activity",
-        choices=["basketball", "yoga", "guitar"],
         help="Activity to coach"
     )
     parser.add_argument(
@@ -267,9 +334,9 @@ if __name__ == "__main__":
         help="Video source: 'webcam' for camera input, or path to video file"
     )
     parser.add_argument(
-        "--tts-provider",
+        "--tts",
         choices=["gemini", "chatgpt"],
-        default="chatgpt",
+        help="TTS provider to use"
     )
 
     parser.add_argument(
@@ -278,4 +345,4 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    main(args.activity, args.video_source, args.tts_provider, args.config)
+    main(args.activity, args.video_source, args.tts, args.config)

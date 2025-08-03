@@ -37,7 +37,6 @@ class GeminiTTS(TTSProvider):
                 model="gemini-2.0-flash-exp",
                 contents=text,
                 config=self.client.types.GenerateContentConfig(
-                    response_modalities=["AUDIO"],
                     speech_config=self.client.types.SpeechConfig(
                         voice_config=self.client.types.VoiceConfig(
                             prebuilt_voice_config=self.client.types.PrebuiltVoiceConfig(
@@ -92,7 +91,7 @@ class ChatGPTTTS(TTSProvider):
                 model="gpt-4o-mini-tts",
                 voice="coral",
                 input=text,
-                instructions="Speak in a cheerful and positive tone.",
+                # instructions="Speak in a cheerful and positive tone.",
             ) as response:
                 response.stream_to_file(speech_file_path)
 
@@ -133,33 +132,43 @@ class TTSManager:
             self.audio_thread = threading.Thread(target=self._audio_worker, daemon=True)
             self.audio_thread.start()
 
-    def add_to_queue(self, text: str, timestamp: float = None):
+    def add_to_queue(self, text: str, timestamp: float = None, interval_duration: float = None):
         """Add text to audio queue"""
         if self.mode == "live":
             with self.audio_lock:
                 self.audio_queue.append(text)
         elif self.mode == "video":
             # Generate audio file for video overlay
-            audio_file = self._generate_audio_file(text, timestamp)
-            if audio_file:
-                self.audio_files_with_timestamps.append((audio_file, timestamp))
+            temp_audio_file = self._generate_audio_file(text, timestamp)
+            if temp_audio_file:
+                # Calculate timing so message ends at end of interval
+                audio_duration = self.get_audio_duration(temp_audio_file)
+                if interval_duration and audio_duration > 0:
+                    # Calculate when to start so message ends at interval end
+                    interval_end = timestamp + interval_duration
+                    adjusted_start_time = max(timestamp, interval_end - audio_duration)
+                else:
+                    adjusted_start_time = timestamp
+                
+                self.audio_files_with_timestamps.append((temp_audio_file, adjusted_start_time))
+                print(f"Audio: {audio_duration:.1f}s, Interval: {timestamp:.1f}s-{timestamp + (interval_duration or 0):.1f}s, Playing: {adjusted_start_time:.1f}s-{adjusted_start_time + audio_duration:.1f}s")
 
     def _generate_audio_file(self, text: str, timestamp: float):
         """Generate audio file for video overlay"""
         try:
             if self.provider_name == "gemini":
                 from google import genai
+                from google.genai import types
                 api_key = os.getenv("GEMINI_API_KEY")
                 client = genai.Client(api_key=api_key)
 
                 response = client.models.generate_content(
-                    model="gemini-2.0-flash-exp",
+                    model="gemini-2.5-flash-preview-tts",
                     contents=text,
-                    config=client.types.GenerateContentConfig(
-                        response_modalities=["AUDIO"],
-                        speech_config=client.types.SpeechConfig(
-                            voice_config=client.types.VoiceConfig(
-                                prebuilt_voice_config=client.types.PrebuiltVoiceConfig(
+                    config=types.GenerateContentConfig(
+                        speech_config=types.SpeechConfig(
+                            voice_config=types.VoiceConfig(
+                                prebuilt_voice_config=types.PrebuiltVoiceConfig(
                                     voice_name='Kore',
                                 )
                             )
@@ -193,6 +202,22 @@ class TTSManager:
         except Exception as e:
             print(f"Error generating audio: {e}")
             return None
+
+    def get_audio_duration(self, audio_file: str) -> float:
+        """Get duration of audio file in seconds"""
+        try:
+            probe_cmd = [
+                "ffprobe", "-v", "quiet", "-print_format", "json", 
+                "-show_format", audio_file
+            ]
+            result = subprocess.run(probe_cmd, capture_output=True, text=True)
+            if result.returncode == 0:
+                import json
+                audio_info = json.loads(result.stdout)
+                return float(audio_info['format']['duration'])
+        except Exception as e:
+            print(f"Error getting audio duration: {e}")
+        return 0.0
 
     def create_video_with_audio_overlay(self, input_video_path: str, output_path: str):
         """Create final video with audio overlay using FFmpeg directly"""
