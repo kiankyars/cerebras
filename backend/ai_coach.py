@@ -66,10 +66,10 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
         
         # Get max response length from config (convert words to approximate tokens)
         max_response_words = config.get('max_response_length', 10)
-        max_output_tokens = max_response_words * 2
+        max_output_tokens = max(100, max_response_words * 10)  # Minimum 100 tokens for meaningful response
         
         # Set thought token limit (internal reasoning tokens)
-        thinking_budget = 300  # Limit internal reasoning tokens
+        thinking_budget = 200  # Reduced to leave more room for output
         
         print(f"📈 Config max_response_length: {max_response_words} words → {max_output_tokens} tokens")
         print(f"🧠 Thinking budget: {thinking_budget} tokens")
