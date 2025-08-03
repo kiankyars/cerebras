@@ -8,7 +8,6 @@ import cv2
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-from moviepy.editor import AudioFileClip, CompositeAudioClip, VideoFileClip
 
 from tts_manager import TTSManager
 
@@ -137,100 +136,6 @@ def capture_live_segment(cap, duration_seconds):
         print(f"Error capturing live segment: {e}")
         return None
 
-def generate_audio_for_text(text, tts_provider, timestamp):
-    """Generate audio file for given text with timestamp for video overlay"""
-    try:
-        if tts_provider == "gemini":
-            from google import genai
-            api_key = os.getenv("GEMINI_API_KEY")
-            client = genai.Client(api_key=api_key)
-
-            response = client.models.generate_content(
-                model="gemini-2.0-flash-exp",
-                contents=text,
-                config=client.types.GenerateContentConfig(
-                    response_modalities=["AUDIO"],
-                    speech_config=client.types.SpeechConfig(
-                        voice_config=client.types.VoiceConfig(
-                            prebuilt_voice_config=client.types.PrebuiltVoiceConfig(
-                                voice_name='Kore',
-                            )
-                        )
-                    ),
-                )
-            )
-
-            audio_data = response.candidates[0].content.parts[0].inline_data.data
-
-        elif tts_provider == "chatgpt":
-            from openai import OpenAI
-            api_key = os.getenv("OPENAI_API_KEY")
-            client = OpenAI(api_key=api_key)
-
-            response = client.audio.speech.create(
-                model="gpt-4o-mini-tts",
-                voice="coral",
-                input=text,
-                instructions="Speak in a cheerful and positive tone.",
-            )
-            audio_data = response.content
-
-        # Save audio file with timestamp
-        audio_filename = f"feedback_{timestamp:.1f}s.wav"
-        with open(audio_filename, "wb") as f:
-            f.write(audio_data)
-
-        return audio_filename, timestamp
-
-    except Exception as e:
-        print(f"Error generating audio: {e}")
-        return None, timestamp
-
-def create_video_with_audio_overlay(input_video_path, audio_files_with_timestamps, output_path):
-    """Create final video with audio overlay at specific timestamps"""
-    try:
-        # Load the original video
-        video = VideoFileClip(input_video_path)
-
-        # Create audio clips from the feedback audio files
-        audio_clips = []
-
-        for audio_file, timestamp in audio_files_with_timestamps:
-            if audio_file and os.path.exists(audio_file):
-                audio_clip = AudioFileClip(audio_file).set_start(timestamp)
-                audio_clips.append(audio_clip)
-
-        if audio_clips:
-            # Combine original video audio with feedback audio
-            if video.audio:
-                final_audio = CompositeAudioClip([video.audio] + audio_clips)
-            else:
-                final_audio = CompositeAudioClip(audio_clips)
-
-            # Set the new audio to the video
-            final_video = video.set_audio(final_audio)
-        else:
-            final_video = video
-
-        # Write the final video
-        final_video.write_videofile(output_path, codec='libx264', audio_codec='aac')
-
-        # Clean up
-        video.close()
-        if 'final_video' in locals():
-            final_video.close()
-
-        # Clean up temporary audio files
-        for audio_file, _ in audio_files_with_timestamps:
-            if audio_file and os.path.exists(audio_file):
-                os.remove(audio_file)
-
-        return True
-
-    except Exception as e:
-        print(f"Error creating video with audio overlay: {e}")
-        return False
-
 def main(activity, video_source, tts_provider, config_path):
     """Main function to capture video and provide real-time coaching"""
     # Load configuration
@@ -265,7 +170,7 @@ def main(activity, video_source, tts_provider, config_path):
             print("Starting live streaming analysis...")
 
             # Initialize TTS manager for real-time audio
-            tts_manager = TTSManager(provider=tts_provider)
+            tts_manager = TTSManager(provider=tts_provider, mode="live")
 
             while True:
                 # Capture and analyze segment
@@ -292,11 +197,13 @@ def main(activity, video_source, tts_provider, config_path):
             # UPLOAD VIDEO WORKFLOW - Audio overlay into final video
             print("Starting upload video analysis...")
 
+            # Initialize TTS manager for video overlay
+            tts_manager = TTSManager(provider=tts_provider, mode="video")
+
             # Calculate frames per segment
             frames_per_segment = int(fps * analysis_interval)
             segment_number = 0
             frame_count = 0
-            audio_files_with_timestamps = []
 
             while True:
                 ret, frame = cap.read()
@@ -317,10 +224,8 @@ def main(activity, video_source, tts_provider, config_path):
                     feedback = analyze_video_with_gemini(video_source, prompt_template, fps, start_time, end_time)
                     print(f"Analysis result: {feedback}")
 
-                    # Generate audio file for this feedback at this timestamp
-                    audio_file, timestamp = generate_audio_for_text(feedback, tts_provider, start_time)
-                    if audio_file:
-                        audio_files_with_timestamps.append((audio_file, timestamp))
+                    # Add feedback to TTS manager with timestamp
+                    tts_manager.add_to_queue(feedback, start_time)
 
                 # Display frame
                 cv2.imshow(f'AI Coach - {activity}', frame)
@@ -329,7 +234,7 @@ def main(activity, video_source, tts_provider, config_path):
             output_path = f"coached_{activity}_{Path(video_source).stem}.mp4"
             print(f"Creating final video with audio overlay: {output_path}")
 
-            success = create_video_with_audio_overlay(video_source, audio_files_with_timestamps, output_path)
+            success = tts_manager.create_video_with_audio_overlay(video_source, output_path)
             if success:
                 print(f"Final video saved: {output_path}")
             else:
