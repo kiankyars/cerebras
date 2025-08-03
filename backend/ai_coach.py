@@ -30,6 +30,7 @@ def load_config(config_path):
 
 def create_system_prompt(config, fps):
     activity = config["activity"]
+    coach = config.get("coach", "professional coach")  # Default fallback
 
     analysis_parts = []
 
@@ -44,14 +45,13 @@ def create_system_prompt(config, fps):
 
     analysis_section = "\n".join(analysis_parts) if analysis_parts else "- Focus on my basic form"
 
-    base_prompt = f"""You are a real-time {activity} coach. Help me like you're Michael Jordan. FPS is {fps}.
+    base_prompt = f"""You are a real-time {activity} coach. Help me like you're {coach}. FPS is {fps}.
 FEEDBACK:
 {analysis_section}
 - ALWAYS be direct
 - NO timestamps
 """
-    print(base_prompt)
-    # quit()
+    
     return base_prompt
 
 def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
@@ -106,7 +106,6 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
             contents=types.Content(parts=parts),
             config=types.GenerateContentConfig(**config_params)
         )
-        
         # Extract and parse the JSON response
         if response.candidates and len(response.candidates) > 0:
             response_text = response.candidates[0].content.parts[0].text
