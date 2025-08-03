@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import Head from 'next/head';
 import FeedbackOverlay from '../components/FeedbackOverlay';
 import LoadingSpinner from '../components/LoadingSpinner';
-// import { useAudio } from '../hooks/useAudio'; // REMOVED: Backend handles TTS
 import { useWebSocket } from '../hooks/useWebSocket';
 import config from '../lib/config';
 
@@ -15,11 +14,16 @@ export default function Home() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [configs, setConfigs] = useState<any[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedConfig, setSelectedConfig] = useState<string>('basketball');
-  const [selectedTTSProvider, setSelectedTTSProvider] = useState<string>('gemini');
+  const [selectedTTSProvider, setSelectedTTSProvider] = useState<string>('chatgpt');
   const [timeElapsed, setTimeElapsed] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
   
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -28,12 +32,12 @@ export default function Home() {
   const timeIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   // Hooks
-  // const { initializeAudio, playTextToSpeech, stopAudio } = useAudio(); // REMOVED: Backend handles TTS
   const { connect, send, disconnect } = useWebSocket();
   
-  // Fetch available configs on mount
+  // Fetch available configs and categories on mount
   useEffect(() => {
     fetchConfigs();
+    fetchCategories();
   }, []);
   
   // Clean up on unmount
@@ -63,12 +67,26 @@ export default function Home() {
       // Set default config if available
       if (data.configs.length > 0) {
         setSelectedConfig(data.configs[0].id);
+        setSelectedCategory(data.configs[0].category);
       }
     } catch (error) {
       console.error('Error fetching configs:', error);
       setError('Failed to load coaching configurations. Please check your connection.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch(`${config.apiUrl}/configs/categories`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch categories: ${response.statusText}`);
+      }
+      const data = await response.json();
+      setCategories(data.categories);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
     }
   };
   
@@ -105,8 +123,6 @@ export default function Home() {
     setIsLoading(true);
     setError('');
     try {
-      // Audio initialization removed - backend handles TTS
-      
       const response = await fetch(`${config.apiUrl}/sessions/live`, {
         method: 'POST',
         headers: {
@@ -126,8 +142,6 @@ export default function Home() {
       connect(data.session_id, (message) => {
         if (message.type === 'feedback' && message.text) {
           setFeedback(message.text);
-          // Play audio feedback
-          // playTextToSpeech(message.text); // REMOVED: Backend handles TTS
         } else if (message.type === 'error') {
           setError(`Error: ${message.message}`);
         }
@@ -147,7 +161,6 @@ export default function Home() {
         setTimeElapsed(prev => prev + 1);
       }, 1000);
       
-      // Return session data for immediate use
       return data;
     } catch (error) {
       console.error('Error starting live session:', error);
@@ -160,7 +173,6 @@ export default function Home() {
   const stopLiveSession = async () => {
     disconnect();
     stopCamera();
-          // stopAudio(); // REMOVED: Backend handles TTS
     
     if (timeIntervalRef.current) {
       clearInterval(timeIntervalRef.current);
@@ -173,27 +185,19 @@ export default function Home() {
   };
   
   const startRecording = (currentSessionId?: string) => {
-    console.log('🎬 startRecording called');
     if (!streamRef.current) {
-      console.error('❌ No stream available for recording');
+      console.error('No stream available for recording');
       return;
     }
     
-    console.log('📹 Creating MediaRecorder...');
-    console.log('Available MediaRecorder options:', MediaRecorder.isTypeSupported('video/webm'));
-    
-    // Try different MediaRecorder options
     let mediaRecorder;
     try {
-      // First try with explicit codec
       if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
-        console.log('Using video/webm;codecs=vp8');
         mediaRecorder = new MediaRecorder(streamRef.current, {
           mimeType: 'video/webm;codecs=vp8',
           videoBitsPerSecond: 250000
         });
       } else {
-        console.log('Using default MediaRecorder settings');
         mediaRecorder = new MediaRecorder(streamRef.current);
       }
     } catch (error) {
@@ -202,53 +206,24 @@ export default function Home() {
     }
     
     mediaRecorderRef.current = mediaRecorder;
-    console.log('✅ MediaRecorder created with mimeType:', mediaRecorder.mimeType);
     
     mediaRecorder.ondataavailable = async (event) => {
-      console.log('📊 MediaRecorder data available:');
-      console.log('  - Blob size:', event.data.size, 'bytes');
-      console.log('  - Blob type:', event.data.type);
-      console.log('  - Session ID:', sessionId);
-      
       const activeSessionId = currentSessionId || sessionId;
       if (event.data.size > 0 && activeSessionId) {
-        // Try to send ANY data for now to debug
-        console.log('🔍 Processing blob data...');
-        
-        // Convert blob to base64 and send via WebSocket
         const reader = new FileReader();
         reader.onload = () => {
           const base64 = reader.result as string;
-          console.log('📝 FileReader result:');
-          console.log('  - Full base64 length:', base64.length);
-          console.log('  - Base64 prefix:', base64.substring(0, 50));
-          
-          // Split on 'base64,' specifically to handle codecs with commas
           const base64Index = base64.indexOf('base64,');
           const videoData = base64Index !== -1 ? base64.substring(base64Index + 7) : null;
-          console.log('  - Video data length:', videoData ? videoData.length : 'null');
-          console.log('  - Base64 index found at:', base64Index);
           
-          if (!videoData || videoData.length < 1000) {
-            console.error('❌ Video data too small or missing after base64 extraction');
-            console.error('  - Base64 preview:', base64.substring(0, 100));
-            return;
+          if (videoData && videoData.length >= 1000) {
+            send({ 
+              type: 'analyze', 
+              videoData: videoData
+            });
           }
-          
-          console.log('📤 Sending video data for analysis');
-          send({ 
-            type: 'analyze', 
-            videoData: videoData
-          });
         };
-        reader.onerror = (error) => {
-          console.error('❌ Failed to read video blob as base64:', error);
-        };
-        
-        console.log('🔄 Starting FileReader...');
         reader.readAsDataURL(event.data);
-      } else {
-        console.warn('⚠️ Skipping data - size:', event.data.size, 'sessionId:', activeSessionId);
       }
     };
     
@@ -256,27 +231,18 @@ export default function Home() {
       console.log('Recording stopped');
     };
     
-    // Test different recording strategies
-    console.log('🔴 Starting MediaRecorder...');
-    console.log('  - Stream tracks:', streamRef.current.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState })));
-    
     try {
-      // Try shorter intervals first to see if we get any data
-      console.log('📊 Starting with 2-second intervals for debugging');
       mediaRecorder.start(2000);
       setIsRecording(true);
-      console.log('✅ MediaRecorder started successfully');
       
-      // Add a timeout to force data if nothing comes through
       setTimeout(() => {
         if (mediaRecorder.state === 'recording') {
-          console.log('⏰ Forcing MediaRecorder to generate data...');
           mediaRecorder.requestData();
         }
       }, 3000);
       
     } catch (error) {
-      console.error('❌ Failed to start MediaRecorder:', error);
+      console.error('Failed to start MediaRecorder:', error);
     }
   };
   
@@ -291,7 +257,6 @@ export default function Home() {
     if (mode === 'live') {
       const sessionData = await startLiveSession();
       if (sessionData) {
-        console.log('🎬 Starting recording with session ID:', sessionData.session_id);
         startRecording(sessionData.session_id);
       }
     }
@@ -313,11 +278,10 @@ export default function Home() {
     setProgress(0);
     
     try {
-      // Create upload session
       const formData = new FormData();
       formData.append('video', file);
       formData.append('config_id', selectedConfig);
-              formData.append('tts_provider', selectedTTSProvider);
+      formData.append('tts_provider', selectedTTSProvider);
       
       const response = await fetch(`${config.apiUrl}/sessions/upload`, {
         method: 'POST',
@@ -331,7 +295,6 @@ export default function Home() {
       const data = await response.json();
       setSessionId(data.session_id);
       
-      // Start the session
       const startResponse = await fetch(`${config.apiUrl}/sessions/${data.session_id}/start`, {
         method: 'POST'
       });
@@ -340,7 +303,6 @@ export default function Home() {
         throw new Error(`Failed to start analysis: ${startResponse.statusText}`);
       }
       
-      // Connect to WebSocket for progress updates
       connect(data.session_id, (message) => {
         if (message.type === 'progress') {
           setProgress((message.segment! / message.total!) * 100);
@@ -367,136 +329,202 @@ export default function Home() {
     const secs = seconds % 60;
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
+
+  const getCategoryIcon = (category: string) => {
+    const icons: { [key: string]: string } = {
+      sports: '🏃‍♂️',
+      health: '💪',
+      instruments: '🎸',
+      cooking: '👨‍🍳'
+    };
+    return icons[category] || '📋';
+  };
+
+  const getActivityIcon = (activity: string) => {
+    const icons: { [key: string]: string } = {
+      basketball: '🏀',
+      soccer: '⚽',
+      yoga: '🧘‍♀️',
+      guitar: '🎸',
+      cooking: '👨‍🍳',
+      sleep: '😴'
+    };
+    return icons[activity] || '🎯';
+  };
+
+  const getVoiceIcon = (provider: string) => {
+    return provider === 'chatgpt' ? '💬' : '🎤';
+  };
+
+  const getVoiceName = (provider: string) => {
+    return provider === 'chatgpt' ? 'Clear Coach AI' : 'Natural Coach AI';
+  };
+
+  const filteredConfigs = selectedCategory 
+    ? configs.filter(config => config.category === selectedCategory)
+    : configs;
+
+  const selectedConfigData = configs.find(c => c.id === selectedConfig);
   
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900">
       <Head>
         <title>NED</title>
         <meta name="description" content="Real-time coaching for sports and more" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
       
-      <main className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-center mb-8">NED</h1>
-        
+      <main className="container mx-auto px-4 py-6 max-w-md">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-bold text-white mb-2">NED</h1>
+          <p className="text-blue-200 text-sm">AI Coaching Assistant</p>
+        </div>
+
         {/* Error Display */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-center">
+          <div className="mb-4 p-3 bg-red-500/20 border border-red-400 rounded-lg text-red-200 text-sm text-center">
             {error}
           </div>
         )}
-        
+
         {/* Loading Display */}
         {isLoading && (
-          <div className="mb-6 text-center">
+          <div className="mb-4 text-center">
             <LoadingSpinner text="Loading..." />
           </div>
         )}
-        
-        {/* Mode Selection */}
-        <div className="flex justify-center mb-6">
-          <div className="inline-flex rounded-md shadow-sm" role="group">
-            <button
-              type="button"
-              className={`px-4 py-2 text-sm font-medium rounded-l-lg ${
-                mode === 'live' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-              }`}
-              onClick={() => setMode('live')}
-            >
-              Live Coaching (Premium)
-            </button>
-            <button
-              type="button"
-              className={`px-4 py-2 text-sm font-medium rounded-r-lg ${
-                mode === 'upload' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-              }`}
-              onClick={() => setMode('upload')}
-            >
-              Upload Video (Free)
-            </button>
-          </div>
+
+        {/* Mode Selection Tabs */}
+        <div className="flex bg-blue-800/50 rounded-lg p-1 mb-6">
+          <button
+            type="button"
+            className={`flex-1 py-3 px-4 text-sm font-medium rounded-md transition-colors ${
+              mode === 'live' 
+                ? 'bg-blue-600 text-white shadow-sm' 
+                : 'text-blue-200 hover:text-white'
+            }`}
+            onClick={() => setMode('live')}
+          >
+            Live Coaching
+          </button>
+          <button
+            type="button"
+            className={`flex-1 py-3 px-4 text-sm font-medium rounded-md transition-colors ${
+              mode === 'upload' 
+                ? 'bg-blue-600 text-white shadow-sm' 
+                : 'text-blue-200 hover:text-white'
+            }`}
+            onClick={() => setMode('upload')}
+          >
+            Upload Video
+          </button>
         </div>
-        
-        {/* Configuration Selection */}
+
+        {/* Activity Selection */}
         <div className="mb-6">
-          <label htmlFor="config-select" className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-blue-200 mb-3">
             Select Activity:
           </label>
-          <select
-            id="config-select"
-            className="block w-full max-w-xs mx-auto rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            value={selectedConfig}
-            onChange={(e) => setSelectedConfig(e.target.value)}
+          <button
+            onClick={() => setShowActivityModal(true)}
+            className="w-full bg-blue-800/50 border border-blue-600/50 rounded-lg p-4 flex items-center justify-between text-left hover:bg-blue-700/50 transition-colors"
           >
-            {configs.map((config) => (
-              <option key={config.id} value={config.id}>
-                {config.name} ({config.category})
-              </option>
-            ))}
-          </select>
+            <div className="flex items-center space-x-3">
+              <span className="text-xl">{getActivityIcon(selectedConfig)}</span>
+              <span className="text-white font-medium">
+                {selectedConfigData?.name || selectedConfig}
+              </span>
+            </div>
+            <span className="text-blue-300">›</span>
+          </button>
         </div>
-        
-        {/* TTS Provider Selection */}
+
+        {/* Voice Style Selection */}
         <div className="mb-6">
-          <label htmlFor="tts-select" className="block text-sm font-medium text-gray-700 mb-2">
-            Voice Provider:
+          <label className="block text-sm font-medium text-blue-200 mb-3">
+            Voice Style:
           </label>
-          <select
-            id="tts-select"
-            className="block w-full max-w-xs mx-auto rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            value={selectedTTSProvider}
-            onChange={(e) => setSelectedTTSProvider(e.target.value)}
+          <button
+            onClick={() => setShowVoiceModal(true)}
+            className="w-full bg-blue-800/50 border border-blue-600/50 rounded-lg p-4 flex items-center justify-between text-left hover:bg-blue-700/50 transition-colors"
           >
-            <option value="chatgpt">ChatGPT TTS (Clear voice)</option>
-            <option value="gemini">Gemini TTS (Natural voice)</option>
-          </select>
+            <div className="flex items-center space-x-3">
+              <span className="text-xl">{getVoiceIcon(selectedTTSProvider)}</span>
+              <span className="text-white font-medium">
+                {getVoiceName(selectedTTSProvider)}
+              </span>
+            </div>
+            <span className="text-blue-300">›</span>
+          </button>
         </div>
-        
+
         {/* Live Mode */}
         {mode === 'live' && (
           <div className="text-center">
-            <div className="relative inline-block">
+            {/* Video Container */}
+            <div className="relative mb-6">
               <video
                 ref={videoRef}
                 autoPlay
                 muted
-                className="w-full max-w-2xl mx-auto rounded-lg shadow-lg"
-                style={{ transform: 'scaleX(-1)' }} // Mirror effect
+                className="w-full aspect-video rounded-lg shadow-2xl bg-gray-900"
+                style={{ transform: 'scaleX(-1)' }}
               />
               
-              <FeedbackOverlay feedback={feedback} timeElapsed={timeElapsed} />
+              {/* Coach Avatar Overlay */}
+              {isRecording && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-2xl border-4 border-blue-400/50">
+                    <div className="w-16 h-16 rounded-full bg-gray-800 flex items-center justify-center">
+                      <span className="text-2xl">👨‍🏫</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Time and Status Overlay */}
+              {isRecording && (
+                <div className="absolute bottom-4 left-4 right-4 text-center">
+                  <div className="bg-black/50 backdrop-blur-sm rounded-lg p-3">
+                    <div className="text-white font-mono text-lg mb-1">
+                      Time: {formatTime(timeElapsed)}
+                    </div>
+                    <div className="text-blue-200 text-sm">
+                      {feedback || 'Analyzing your movements...'}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
             
+            {/* Control Button */}
             <div className="mt-6">
               {!isRecording ? (
                 <button
                   onClick={handleStart}
                   disabled={isLoading}
-                  className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                 >
                   {isLoading ? 'Starting...' : 'Start Live Coaching'}
                 </button>
               ) : (
                 <button
                   onClick={handleStop}
-                  className="px-6 py-3 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                  className="w-full py-4 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 shadow-lg"
                 >
-                  Stop Coaching
+                  End Session
                 </button>
               )}
             </div>
           </div>
         )}
-        
+
         {/* Upload Mode */}
         {mode === 'upload' && (
           <div className="text-center">
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-blue-200 mb-3">
                 Upload Video:
               </label>
               <input
@@ -504,25 +532,26 @@ export default function Home() {
                 accept="video/*"
                 onChange={handleVideoUpload}
                 disabled={isLoading}
-                className="block w-full max-w-xs mx-auto text-sm text-gray-500
-                  file:mr-4 file:py-2 file:px-4
+                className="block w-full text-sm text-gray-400
+                  file:mr-4 file:py-3 file:px-4
                   file:rounded-lg file:border-0
                   file:text-sm file:font-semibold
                   file:bg-blue-600 file:text-white
                   hover:file:bg-blue-700
-                  disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  bg-blue-800/50 border border-blue-600/50 rounded-lg p-3"
               />
             </div>
             
             {progress > 0 && (
               <div className="mb-6">
-                <div className="w-full max-w-xs mx-auto bg-gray-200 rounded-full h-2.5">
+                <div className="w-full bg-blue-800/50 rounded-full h-3">
                   <div 
-                    className="bg-blue-600 h-2.5 rounded-full" 
+                    className="bg-blue-600 h-3 rounded-full transition-all duration-300" 
                     style={{ width: `${progress}%` }}
                   ></div>
                 </div>
-                <p className="mt-2 text-sm text-gray-600">{Math.round(progress)}% complete</p>
+                <p className="mt-2 text-sm text-blue-200">{Math.round(progress)}% complete</p>
               </div>
             )}
             
@@ -531,7 +560,7 @@ export default function Home() {
                 <a 
                   href={videoUrl} 
                   download
-                  className="px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                  className="w-full py-4 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shadow-lg block"
                 >
                   Download Coached Video
                 </a>
@@ -539,10 +568,116 @@ export default function Home() {
             )}
             
             {feedback && (
-              <div className="mt-6 p-4 bg-white rounded-lg shadow-md max-w-2xl mx-auto">
-                <p>{feedback}</p>
+              <div className="mt-6 p-4 bg-blue-800/50 rounded-lg border border-blue-600/50">
+                <p className="text-blue-200">{feedback}</p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Category Selection Modal */}
+        {showCategoryModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-blue-900 rounded-lg p-6 w-80 max-h-96 overflow-y-auto">
+              <h3 className="text-lg font-semibold text-white mb-4">Select Category</h3>
+              <div className="space-y-2">
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => {
+                      setSelectedCategory(category);
+                      setShowCategoryModal(false);
+                    }}
+                    className="w-full p-3 text-left bg-blue-800/50 rounded-lg hover:bg-blue-700/50 transition-colors"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <span className="text-xl">{getCategoryIcon(category)}</span>
+                      <span className="text-white capitalize">{category}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setShowCategoryModal(false)}
+                className="mt-4 w-full py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Activity Selection Modal */}
+        {showActivityModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-blue-900 rounded-lg p-6 w-80 max-h-96 overflow-y-auto">
+              <h3 className="text-lg font-semibold text-white mb-4">Select Activity</h3>
+              <div className="space-y-2">
+                {filteredConfigs.map((config) => (
+                  <button
+                    key={config.id}
+                    onClick={() => {
+                      setSelectedConfig(config.id);
+                      setSelectedCategory(config.category);
+                      setShowActivityModal(false);
+                    }}
+                    className="w-full p-3 text-left bg-blue-800/50 rounded-lg hover:bg-blue-700/50 transition-colors"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <span className="text-xl">{getActivityIcon(config.id)}</span>
+                      <span className="text-white">{config.name}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setShowActivityModal(false)}
+                className="mt-4 w-full py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Voice Selection Modal */}
+        {showVoiceModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-blue-900 rounded-lg p-6 w-80">
+              <h3 className="text-lg font-semibold text-white mb-4">Select Voice Style</h3>
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    setSelectedTTSProvider('chatgpt');
+                    setShowVoiceModal(false);
+                  }}
+                  className="w-full p-3 text-left bg-blue-800/50 rounded-lg hover:bg-blue-700/50 transition-colors"
+                >
+                  <div className="flex items-center space-x-3">
+                    <span className="text-xl">💬</span>
+                    <span className="text-white">Clear Coach AI</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedTTSProvider('gemini');
+                    setShowVoiceModal(false);
+                  }}
+                  className="w-full p-3 text-left bg-blue-800/50 rounded-lg hover:bg-blue-700/50 transition-colors"
+                >
+                  <div className="flex items-center space-x-3">
+                    <span className="text-xl">🎤</span>
+                    <span className="text-white">Natural Coach AI</span>
+                  </div>
+                </button>
+              </div>
+              <button
+                onClick={() => setShowVoiceModal(false)}
+                className="mt-4 w-full py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         )}
       </main>
