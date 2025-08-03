@@ -1,0 +1,10 @@
+{
+  "activity": "piano",
+  "coach": "a professional pianist and music teacher",
+  "skill_level": "beginner",
+  "feedback_frequency": 20,
+  "fps": 5,
+  "max_response_length": 10,
+  "goal": "improve piano technique and musical expression",
+  "focus_on": "hand position, finger technique, rhythm, and musical expression"
+} 
