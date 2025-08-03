@@ -59,9 +59,9 @@ FEEDBACK:
 def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
     """Send video file to Gemini API for analysis, returns JSON format"""
     # Check for OpenRouter configuration
-    use_openrouter = config.get('use_openrouter', False)
+    provider = config.get('provider', False)
     
-    if use_openrouter:
+    if provider == "openrouter":
         return analyze_video_with_openrouter(video_file_path, prompt_template, fps, config)
     else:
         return analyze_video_with_gemini(video_file_path, prompt_template, fps, config)
@@ -195,7 +195,7 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
         # Get max response length from config (convert words to approximate tokens)
         max_response_words = config.get('max_response_length', 10)
         # Increase token allowance significantly for video analysis responses
-        max_output_tokens = max(1000, max_response_words * 20)  # Minimum 1000 tokens for responses
+        max_output_tokens = max(500, max_response_words * 10)  # Reduced from 1000 to 500
         print(f"📈 Config max_response_length: {max_response_words} words → {max_output_tokens} tokens")
         
         # Define JSON schema for feedback response
@@ -249,6 +249,13 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
         if hasattr(response, 'candidates'):
             print(f"📄 Response has {len(response.candidates) if response.candidates else 0} candidates")
         
+        # Check for API errors in response
+        if hasattr(response, 'prompt_feedback') and response.prompt_feedback:
+            print(f"⚠️ Prompt feedback: {response.prompt_feedback}")
+        
+        if hasattr(response, 'usage_metadata') and response.usage_metadata:
+            print(f"📊 Usage: {response.usage_metadata}")
+        
         if response.candidates:
             # When response_mime_type is 'application/json', the response should be directly accessible
             candidate = response.candidates[0]
@@ -291,7 +298,9 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
             
     except Exception as e:
         print(f"Error in analysis: {e}")
-        return {"feedback": "Error in analysis"}
+        import traceback
+        print(f"Full error traceback: {traceback.format_exc()}")
+        return {"feedback": f"Error in analysis: {str(e)}"}
 
 def capture_live_segment(cap, duration_seconds):
     """Capture live video segment to temporary file and return path"""

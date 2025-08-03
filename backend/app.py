@@ -35,7 +35,7 @@ active_sessions: Dict[str, Dict] = {}
 
 # Rate limiting for API calls
 last_api_call_time = 0
-MIN_API_INTERVAL = 5  # Minimum 5 seconds between API calls
+MIN_API_INTERVAL = 10  # Minimum 10 seconds between API calls
 config_manager = ConfigManager("configs")
 
 class ConnectionManager:
@@ -354,6 +354,8 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
                             global last_api_call_time
                             current_time = time.time()
                             time_since_last_call = current_time - last_api_call_time
+                            
+                            print(f"⏱️ Time since last API call: {time_since_last_call:.1f}s (min: {MIN_API_INTERVAL}s)")
                             
                             if time_since_last_call < MIN_API_INTERVAL:
                                 wait_time = MIN_API_INTERVAL - time_since_last_call
