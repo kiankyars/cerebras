@@ -20,7 +20,7 @@ if not api_key:
 # Initialize the new genai client
 client = genai.Client(api_key=api_key)
 
-def load_config(config_path="configs/coach_config.json"):
+def load_config(config_path="configs/basketball_config.json"):
     """Load coaching configuration from JSON file"""
     with open(config_path, 'r') as f:
         return json.load(f)
@@ -185,13 +185,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--activity", 
         choices=["basketball", "yoga", "guitar"], 
-        default="basketball",
-        help="Activity to coach (default: basketball)"
+        help="Activity to coach"
     )
     parser.add_argument(
-        "--video-source", 
-        default="webcam",
-        help="Video source: 'webcam' for camera input, or path to video file (default: webcam)"
+        "--video-source",
+        help="Video source: 'webcam' for camera input, or path to video file"
     )
     parser.add_argument(
         "--tts-provider",
@@ -202,8 +200,7 @@ if __name__ == "__main__":
     
     parser.add_argument(
         "--config",
-        default="configs/coach_config.json",
-        help="Path to coaching configuration file (default: configs/coach_config.json)"
+        help="Path to coaching configuration file"
     )
     
     args = parser.parse_args()
