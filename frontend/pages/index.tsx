@@ -18,6 +18,7 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedConfig, setSelectedConfig] = useState<string>('basketball');
   const [selectedTTSProvider, setSelectedTTSProvider] = useState<string>('chatgpt');
+  const [selectedVoiceStyle, setSelectedVoiceStyle] = useState<string>('cheerful');
   const [timeElapsed, setTimeElapsed] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
@@ -33,6 +34,15 @@ export default function Home() {
   
   // Hooks
   const { connect, send, disconnect } = useWebSocket();
+  
+  // Voice style options
+  const voiceStyles = [
+    { id: 'cheerful', name: 'Cheerful & Positive', icon: '😊', instruction: 'Speak in a cheerful and positive tone.' },
+    { id: 'motivational', name: 'Motivational & Energetic', icon: '💪', instruction: 'Speak with high energy and motivation.' },
+    { id: 'calm', name: 'Calm & Relaxed', icon: '🧘‍♀️', instruction: 'Speak in a calm and soothing tone.' },
+    { id: 'professional', name: 'Professional & Clear', icon: '👔', instruction: 'Speak in a professional and authoritative tone.' },
+    { id: 'friendly', name: 'Friendly & Casual', icon: '🤝', instruction: 'Speak in a friendly and conversational tone.' }
+  ];
   
   // Fetch available configs and categories on mount
   useEffect(() => {
@@ -128,7 +138,7 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: `config_id=${selectedConfig}&tts_provider=${selectedTTSProvider}`
+        body: `config_id=${selectedConfig}&tts_provider=${selectedTTSProvider}&voice_style=${selectedVoiceStyle}`
       });
       
       if (!response.ok) {
@@ -282,6 +292,7 @@ export default function Home() {
       formData.append('video', file);
       formData.append('config_id', selectedConfig);
       formData.append('tts_provider', selectedTTSProvider);
+      formData.append('voice_style', selectedVoiceStyle);
       
       const response = await fetch(`${config.apiUrl}/sessions/upload`, {
         method: 'POST',
@@ -344,10 +355,14 @@ export default function Home() {
     const icons: { [key: string]: string } = {
       basketball: '🏀',
       soccer: '⚽',
-      yoga: '🧘‍♀️',
+      yoga: '��‍♀️',
       guitar: '🎸',
       cooking: '👨‍🍳',
-      sleep: '😴'
+      sleep: '😴',
+      sandwich: '🥪',
+      hurdles: '🏃‍♀️',
+      paddle_ball: '🏓',
+      plyometrics: '💪'
     };
     return icons[activity] || '🎯';
   };
@@ -358,6 +373,10 @@ export default function Home() {
 
   const getVoiceName = (provider: string) => {
     return provider === 'chatgpt' ? 'Clear Coach AI' : 'Natural Coach AI';
+  };
+
+  const getSelectedVoiceStyle = () => {
+    return voiceStyles.find(style => style.id === selectedVoiceStyle) || voiceStyles[0];
   };
 
   const filteredConfigs = selectedCategory 
@@ -378,7 +397,6 @@ export default function Home() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-white mb-2">NED</h1>
-          <p className="text-blue-200 text-sm">AI Coaching Assistant</p>
         </div>
 
         {/* Error Display */}
@@ -450,9 +468,9 @@ export default function Home() {
             className="w-full bg-blue-800/50 border border-blue-600/50 rounded-lg p-4 flex items-center justify-between text-left hover:bg-blue-700/50 transition-colors"
           >
             <div className="flex items-center space-x-3">
-              <span className="text-xl">{getVoiceIcon(selectedTTSProvider)}</span>
+              <span className="text-xl">{getSelectedVoiceStyle().icon}</span>
               <span className="text-white font-medium">
-                {getVoiceName(selectedTTSProvider)}
+                {getSelectedVoiceStyle().name}
               </span>
             </div>
             <span className="text-blue-300">›</span>
@@ -575,45 +593,13 @@ export default function Home() {
           </div>
         )}
 
-        {/* Category Selection Modal */}
-        {showCategoryModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-blue-900 rounded-lg p-6 w-80 max-h-96 overflow-y-auto">
-              <h3 className="text-lg font-semibold text-white mb-4">Select Category</h3>
-              <div className="space-y-2">
-                {categories.map((category) => (
-                  <button
-                    key={category}
-                    onClick={() => {
-                      setSelectedCategory(category);
-                      setShowCategoryModal(false);
-                    }}
-                    className="w-full p-3 text-left bg-blue-800/50 rounded-lg hover:bg-blue-700/50 transition-colors"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <span className="text-xl">{getCategoryIcon(category)}</span>
-                      <span className="text-white capitalize">{category}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => setShowCategoryModal(false)}
-                className="mt-4 w-full py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Activity Selection Modal */}
         {showActivityModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-blue-900 rounded-lg p-6 w-80 max-h-96 overflow-y-auto">
               <h3 className="text-lg font-semibold text-white mb-4">Select Activity</h3>
               <div className="space-y-2">
-                {filteredConfigs.map((config) => (
+                {configs.map((config) => (
                   <button
                     key={config.id}
                     onClick={() => {
@@ -640,36 +626,30 @@ export default function Home() {
           </div>
         )}
 
-        {/* Voice Selection Modal */}
+        {/* Voice Style Selection Modal */}
         {showVoiceModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-blue-900 rounded-lg p-6 w-80">
+            <div className="bg-blue-900 rounded-lg p-6 w-80 max-h-96 overflow-y-auto">
               <h3 className="text-lg font-semibold text-white mb-4">Select Voice Style</h3>
               <div className="space-y-2">
-                <button
-                  onClick={() => {
-                    setSelectedTTSProvider('chatgpt');
-                    setShowVoiceModal(false);
-                  }}
-                  className="w-full p-3 text-left bg-blue-800/50 rounded-lg hover:bg-blue-700/50 transition-colors"
-                >
-                  <div className="flex items-center space-x-3">
-                    <span className="text-xl">💬</span>
-                    <span className="text-white">Clear Coach AI</span>
-                  </div>
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedTTSProvider('gemini');
-                    setShowVoiceModal(false);
-                  }}
-                  className="w-full p-3 text-left bg-blue-800/50 rounded-lg hover:bg-blue-700/50 transition-colors"
-                >
-                  <div className="flex items-center space-x-3">
-                    <span className="text-xl">🎤</span>
-                    <span className="text-white">Natural Coach AI</span>
-                  </div>
-                </button>
+                {voiceStyles.map((style) => (
+                  <button
+                    key={style.id}
+                    onClick={() => {
+                      setSelectedVoiceStyle(style.id);
+                      setShowVoiceModal(false);
+                    }}
+                    className="w-full p-3 text-left bg-blue-800/50 rounded-lg hover:bg-blue-700/50 transition-colors"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <span className="text-xl">{style.icon}</span>
+                      <div className="flex-1">
+                        <div className="text-white font-medium">{style.name}</div>
+                        <div className="text-blue-200 text-xs">{style.instruction}</div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
               </div>
               <button
                 onClick={() => setShowVoiceModal(false)}

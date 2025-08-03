@@ -93,7 +93,7 @@ class ChatGPTTTS(TTSProvider):
                 model="gpt-4o-mini-tts",
                 voice="coral",
                 input=text,
-                # instructions="Speak in a cheerful and positive tone.",
+                instructions="Speak in a cheerful and positive tone.",
             ) as response:
                 response.stream_to_file(speech_file_path)
 

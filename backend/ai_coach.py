@@ -28,7 +28,7 @@ def load_config(config_path):
     with open(config_path, 'r') as f:
         return json.load(f)
 
-def create_system_prompt(config, fps):
+def create_system_prompt(config, fps, voice_style="cheerful"):
     activity = config["activity"]
 
     analysis_parts = []
@@ -44,6 +44,17 @@ def create_system_prompt(config, fps):
 
     analysis_section = "\n".join(analysis_parts) if analysis_parts else "- Focus on my basic form"
 
+    # Voice style instructions
+    voice_instructions = {
+        "cheerful": "Speak in a cheerful and positive tone.",
+        "motivational": "Speak with high energy and motivation.",
+        "calm": "Speak in a calm and soothing tone.",
+        "professional": "Speak in a professional and authoritative tone.",
+        "friendly": "Speak in a friendly and conversational tone."
+    }
+    
+    voice_instruction = voice_instructions.get(voice_style, voice_instructions["cheerful"])
+
     coach = config.get('coach', 'an expert coach')
     base_prompt = f"""You are a real-time {activity} coach. Help me like you're {coach}. FPS is {fps}.
 FEEDBACK:
@@ -51,6 +62,7 @@ FEEDBACK:
 - ALWAYS be direct
 - NO timestamps
 - OUTPUT RESPONSE IS AT MOST {config["max_response_length"]} WORDS
+- VOICE STYLE: {voice_instruction}
 """
     print(base_prompt)
     # quit()

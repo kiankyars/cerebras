@@ -105,7 +105,8 @@ async def get_config(config_id: str):
 async def create_upload_session(
     video: UploadFile = File(...),
     config_id: str = Form(...),
-    tts_provider: str = Form(default="chatgpt")
+    tts_provider: str = Form(default="chatgpt"),
+    voice_style: str = Form(default="cheerful")
 ):
     """Create a new session for uploaded video analysis"""
     session_id = str(uuid.uuid4())
@@ -127,6 +128,7 @@ async def create_upload_session(
         "video_path": temp_video.name,
         "config_path": config_path,
         "tts_provider": tts_provider,
+        "voice_style": voice_style,
         "status": "created"
     }
     
@@ -139,7 +141,8 @@ async def create_upload_session(
 @app.post("/sessions/live")
 async def create_live_session(
     config_id: str = Form(...),
-    tts_provider: str = Form(default="chatgpt")
+    tts_provider: str = Form(default="chatgpt"),
+    voice_style: str = Form(default="cheerful")
 ):
     """Create a new session for live video analysis"""
     session_id = str(uuid.uuid4())
@@ -154,6 +157,7 @@ async def create_live_session(
         "type": "live",
         "config_path": config_path,
         "tts_provider": tts_provider,
+        "voice_style": voice_style,
         "status": "created"
     }
     
@@ -198,7 +202,8 @@ async def process_upload_video(session_id: str, session: dict, config: dict):
         
         # Create prompt
         fps = config.get('fps')
-        prompt_template = create_system_prompt(config, fps)
+        voice_style = session.get('voice_style', 'cheerful')
+        prompt_template = create_system_prompt(config, fps, voice_style)
         
         # Split video into segments
         analysis_interval = config.get('feedback_frequency')
@@ -330,7 +335,8 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
     
     # Create prompt
     fps = config.get('fps', 30)
-    prompt_template = create_system_prompt(config, fps)
+    voice_style = session.get('voice_style', 'cheerful')
+    prompt_template = create_system_prompt(config, fps, voice_style)
     feedback_frequency = config.get('feedback_frequency', 3)  # seconds
     
     try:
