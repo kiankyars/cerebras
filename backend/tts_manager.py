@@ -56,13 +56,8 @@ class GeminiTTS(TTSProvider):
             temp_file = "temp_feedback.wav"
             self._save_wave_file(temp_file, audio_data)
 
-            # Play the audio file
-            if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("PORT"):
-                # Production - don't play audio
-                print(f"Generated TTS audio: {temp_file}")
-            else:
-                # Development - play audio
-                os.system(f"afplay {temp_file}")
+            # Always play audio
+            os.system(f"afplay {temp_file}")
 
             # Clean up temporary file
             os.remove(temp_file)
@@ -106,13 +101,8 @@ class ChatGPTTTS(TTSProvider):
             ) as response:
                 response.stream_to_file(speech_file_path)
 
-            # Play the audio file
-            if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("PORT"):
-                # Production - don't play audio
-                print(f"Generated TTS audio: {speech_file_path}")
-            else:
-                # Development - play audio
-                os.system(f"afplay {speech_file_path}")
+            # Always play audio
+            os.system(f"afplay {speech_file_path}")
 
             # Clean up temporary file
             speech_file_path.unlink(missing_ok=True)
@@ -121,6 +111,37 @@ class ChatGPTTTS(TTSProvider):
         except Exception as e:
             print(f"Error generating or playing speech with ChatGPT: {e}")
             return False
+
+    def generate_audio_base64(self, text: str) -> str:
+        """Generate audio and return as base64 string for frontend playback"""
+        try:
+            speech_file_path = Path(__file__).parent / "temp_speech.mp3"
+
+            # Create voice instructions based on style
+            voice_instructions = self._get_voice_instructions()
+
+            with self.client.audio.speech.with_streaming_response.create(
+                model="gpt-4o-mini-tts",
+                voice="coral",
+                input=text,
+                instructions=voice_instructions,
+            ) as response:
+                response.stream_to_file(speech_file_path)
+
+            # Read the file and convert to base64
+            import base64
+            with open(speech_file_path, "rb") as f:
+                audio_data = f.read()
+                audio_base64 = base64.b64encode(audio_data).decode('utf-8')
+
+            # Clean up temporary file
+            speech_file_path.unlink(missing_ok=True)
+            
+            return audio_base64
+
+        except Exception as e:
+            print(f"Error generating audio with ChatGPT: {e}")
+            return None
 
     def _get_voice_instructions(self) -> str:
         """Get voice instructions based on selected style"""

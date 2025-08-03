@@ -4,7 +4,7 @@
   "goal": "Improve explosive power and athletic performance",
   "focus_on": "jump mechanics, landing technique, and form",
   "skill_level": "intermediate",
-  "feedback_frequency": 8,
-  "fps": 4,
-  "max_response_length": 45
+  "feedback_frequency": 10,
+  "fps": 5,
+  "max_response_length": 10
 }

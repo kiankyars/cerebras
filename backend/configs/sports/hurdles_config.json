@@ -4,7 +4,7 @@
   "goal": "Improve hurdling technique and speed",
   "focus_on": "form, rhythm, and clearance technique",
   "skill_level": "intermediate",
-  "feedback_frequency": 6,
-  "fps": 6,
-  "max_response_length": 35
+  "feedback_frequency": 10,
+  "fps": 5,
+  "max_response_length": 10
 }

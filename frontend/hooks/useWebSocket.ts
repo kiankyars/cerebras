@@ -2,13 +2,14 @@ import { useRef, useCallback, useEffect } from 'react';
 import config from '../lib/config';
 
 export interface WebSocketMessage {
-  type: 'feedback' | 'progress' | 'completed' | 'error';
+  type: 'feedback' | 'progress' | 'completed' | 'error' | 'audio';
   text?: string;
   message?: string;
   segment?: number;
   total?: number;
   download_url?: string;
   timestamp?: number;
+  audio_data?: string;
 }
 
 export const useWebSocket = () => {

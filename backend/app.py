@@ -403,13 +403,22 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
                             })
                             print(f"📤 Feedback sent via WebSocket")
                             
-                            # Play audio feedback only if not an error
+                            # Generate and send audio only if not an error
                             is_error = feedback_text.startswith("Error in") or "error" in feedback_text.lower()
                             if not is_error:
-                                tts_manager.add_to_queue(feedback_text)
-                                print(f"🔊 Added to TTS queue")
+                                # Generate audio and send to frontend
+                                audio_base64 = tts_manager.tts_provider.generate_audio_base64(feedback_text)
+                                if audio_base64:
+                                    await websocket.send_json({
+                                        "type": "audio",
+                                        "audio_data": audio_base64,
+                                        "text": feedback_text
+                                    })
+                                    print(f"🎵 Audio sent via WebSocket")
+                                else:
+                                    print(f"⚠️ Failed to generate audio")
                             else:
-                                print(f"⚠️ Skipping TTS for error message")
+                                print(f"⚠️ Skipping audio for error message")
                             
                             # Clean up
                             os.unlink(temp_video_path)

@@ -156,6 +156,18 @@ export default function Home() {
       connect(data.session_id, (message) => {
         if (message.type === 'feedback' && message.text) {
           setFeedback(message.text);
+        } else if (message.type === 'audio' && message.audio_data) {
+          // Convert base64 to audio blob and play
+          try {
+            const audioBlob = new Blob([
+              Uint8Array.from(atob(message.audio_data), c => c.charCodeAt(0))
+            ], { type: 'audio/mp3' });
+            
+            const audio = new Audio(URL.createObjectURL(audioBlob));
+            audio.play().catch(e => console.error('Audio playback failed:', e));
+          } catch (e) {
+            console.error('Failed to process audio data:', e);
+          }
         } else if (message.type === 'error') {
           setError(`Error: ${message.message}`);
         }
@@ -330,6 +342,18 @@ export default function Home() {
           setProgress(100);
           setVideoUrl(`${config.apiUrl}${message.download_url}`);
           setFeedback('Video analysis complete! Download your coached video below.');
+        } else if (message.type === 'audio' && message.audio_data) {
+          // Convert base64 to audio blob and play
+          try {
+            const audioBlob = new Blob([
+              Uint8Array.from(atob(message.audio_data), c => c.charCodeAt(0))
+            ], { type: 'audio/mp3' });
+            
+            const audio = new Audio(URL.createObjectURL(audioBlob));
+            audio.play().catch(e => console.error('Audio playback failed:', e));
+          } catch (e) {
+            console.error('Failed to process audio data:', e);
+          }
         } else if (message.type === 'error') {
           setError(`Error: ${message.message}`);
         }
