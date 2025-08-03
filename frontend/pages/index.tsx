@@ -355,7 +355,7 @@ export default function Home() {
     const icons: { [key: string]: string } = {
       basketball: '🏀',
       soccer: '⚽',
-      yoga: '��‍♀️',
+      yoga: '🧘‍♀️',
       guitar: '🎸',
       cooking: '👨‍🍳',
       sleep: '😴',
@@ -595,8 +595,14 @@ export default function Home() {
 
         {/* Activity Selection Modal */}
         {showActivityModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-blue-900 rounded-lg p-6 w-80 max-h-96 overflow-y-auto">
+          <div 
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => setShowActivityModal(false)}
+          >
+            <div 
+              className="bg-blue-900 rounded-lg p-6 w-80 max-h-96 overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
               <h3 className="text-lg font-semibold text-white mb-4">Select Activity</h3>
               <div className="space-y-2">
                 {configs.map((config) => (
@@ -616,20 +622,20 @@ export default function Home() {
                   </button>
                 ))}
               </div>
-              <button
-                onClick={() => setShowActivityModal(false)}
-                className="mt-4 w-full py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-              >
-                Cancel
-              </button>
             </div>
           </div>
         )}
 
         {/* Voice Style Selection Modal */}
         {showVoiceModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-blue-900 rounded-lg p-6 w-80 max-h-96 overflow-y-auto">
+          <div 
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => setShowVoiceModal(false)}
+          >
+            <div 
+              className="bg-blue-900 rounded-lg p-6 w-80 max-h-96 overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
               <h3 className="text-lg font-semibold text-white mb-4">Select Voice Style</h3>
               <div className="space-y-2">
                 {voiceStyles.map((style) => (
@@ -651,12 +657,6 @@ export default function Home() {
                   </button>
                 ))}
               </div>
-              <button
-                onClick={() => setShowVoiceModal(false)}
-                className="mt-4 w-full py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-              >
-                Cancel
-              </button>
             </div>
           </div>
         )}
