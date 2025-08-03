@@ -171,10 +171,16 @@ export default function Home() {
   };
   
   const startRecording = () => {
-    if (!streamRef.current) return;
+    console.log('🎬 startRecording called');
+    if (!streamRef.current) {
+      console.error('❌ No stream available for recording');
+      return;
+    }
     
+    console.log('📹 Creating MediaRecorder...');
     const mediaRecorder = new MediaRecorder(streamRef.current);
     mediaRecorderRef.current = mediaRecorder;
+    console.log('✅ MediaRecorder created');
     
     mediaRecorder.ondataavailable = async (event) => {
       console.log('MediaRecorder data available:', event.data.size, 'bytes');
@@ -211,9 +217,14 @@ export default function Home() {
     };
     
     // Start recording with 5-second segments for better data capture
-    console.log('Starting MediaRecorder with 5-second intervals');
-    mediaRecorder.start(5000);
-    setIsRecording(true);
+    console.log('🔴 Starting MediaRecorder with 5-second intervals');
+    try {
+      mediaRecorder.start(5000);
+      setIsRecording(true);
+      console.log('✅ MediaRecorder started successfully');
+    } catch (error) {
+      console.error('❌ Failed to start MediaRecorder:', error);
+    }
   };
   
   const stopRecording = () => {
