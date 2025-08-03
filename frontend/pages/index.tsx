@@ -181,6 +181,7 @@ export default function Home() {
         const reader = new FileReader();
         reader.onload = () => {
           const base64 = reader.result as string;
+          console.log('Sending video data for analysis, size:', event.data.size);
           send({ 
             type: 'analyze', 
             videoData: base64.split(',')[1] // Remove data:video/webm;base64, prefix
