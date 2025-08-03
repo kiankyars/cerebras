@@ -83,3 +83,4 @@ statistics will be optional in the future
 
 
 I will eventually supply the previous recommendations in the prompt to the model so that it has context on what happened before.
+YOU CAN CHOOSE THE VOICE IS ANOTHER OPTIMIZATION WE WILL DO and the speed of the voice THIS IS GOING TO BE SO FUCKING GOOD

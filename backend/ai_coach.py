@@ -49,7 +49,7 @@ Notify me if wrong activity, no movement, or poor lighting detected.
 
 FEEDBACK:
 {analysis_section}
-- Keep under {config.get('max_response_length', 20)} words
+- Keep under {config.get('max_response_length', 10)} words
 - ALWAYS Be direct"""
     print(base_prompt)
     # quit()

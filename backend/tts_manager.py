@@ -1,4 +1,6 @@
 import os
+import shutil
+import subprocess
 import threading
 import time
 import wave
@@ -6,7 +8,6 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 from dotenv import load_dotenv
-from moviepy import AudioFileClip, CompositeAudioClip, VideoFileClip
 
 # Load environment variables
 load_dotenv()
@@ -152,7 +153,7 @@ class TTSManager:
                 client = genai.Client(api_key=api_key)
 
                 response = client.models.generate_content(
-                    model="gemini-2.5-flash-preview-tts",
+                    model="gemini-2.0-flash-exp",
                     contents=text,
                     config=client.types.GenerateContentConfig(
                         response_modalities=["AUDIO"],
@@ -182,6 +183,7 @@ class TTSManager:
                 audio_data = response.content
 
             # Save audio file with timestamp
+            os.makedirs("data", exist_ok=True)
             audio_filename = f"data/feedback_{timestamp:.1f}s.wav"
             with open(audio_filename, "wb") as f:
                 f.write(audio_data)
@@ -193,46 +195,81 @@ class TTSManager:
             return None
 
     def create_video_with_audio_overlay(self, input_video_path: str, output_path: str):
-        """Create final video with audio overlay at specific timestamps"""
+        """Create final video with audio overlay using FFmpeg directly"""
         try:
-            # Load the original video
-            video = VideoFileClip(input_video_path)
-
-            # Create audio clips from the feedback audio files
-            audio_clips = []
-
+            if not self.audio_files_with_timestamps:
+                # No audio to overlay, just copy the original
+                shutil.copy2(input_video_path, output_path)
+                print("No audio feedback to overlay, copied original video")
+                return True
+            
+            # Check if ffmpeg is available
+            try:
+                subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True)
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                print("Error: FFmpeg not found. Please install FFmpeg.")
+                return False
+            
+            # Build FFmpeg command for mixing audio
+            cmd = ["ffmpeg", "-y", "-i", input_video_path]
+            
+            # Add all feedback audio files as inputs
+            audio_delays = []
+            valid_audio_count = 0
+            
             for audio_file, timestamp in self.audio_files_with_timestamps:
                 if audio_file and os.path.exists(audio_file):
-                    audio_clip = AudioFileClip(audio_file).with_start(timestamp)
-                    audio_clips.append(audio_clip)
-
-            if audio_clips:
-                # Combine original video audio with feedback audio
-                if video.audio:
-                    final_audio = CompositeAudioClip([video.audio] + audio_clips)
-                else:
-                    final_audio = CompositeAudioClip(audio_clips)
-
-                # Set the new audio to the video
-                final_video = video.set_audio(final_audio)
-            else:
-                final_video = video
-
-            # Write the final video
-            final_video.write_videofile(output_path, codec='libx264', audio_codec='aac')
-
-            # Clean up
-            video.close()
-            if 'final_video' in locals():
-                final_video.close()
-
-            # Clean up temporary audio files
+                    cmd.extend(["-i", audio_file])
+                    # Convert timestamp to milliseconds and create delay filter
+                    delay_ms = int(timestamp * 1000)
+                    audio_delays.append(f"[{valid_audio_count + 1}:a]adelay={delay_ms}|{delay_ms}[a{valid_audio_count}]")
+                    valid_audio_count += 1
+            
+            if valid_audio_count == 0:
+                shutil.copy2(input_video_path, output_path)
+                print("No valid audio files found, copied original video")
+                return True
+            
+            # Build filter complex to mix all audio
+            filter_parts = audio_delays.copy()
+            
+            # Create the mixing command
+            mix_inputs = "[0:a]" + "".join([f"[a{i}]" for i in range(valid_audio_count)])
+            filter_parts.append(f"{mix_inputs}amix=inputs={valid_audio_count + 1}:duration=longest[out]")
+            
+            filter_complex = ";".join(filter_parts)
+            
+            cmd.extend([
+                "-filter_complex", filter_complex,
+                "-map", "0:v",  # Copy video from input
+                "-map", "[out]",  # Use mixed audio output
+                "-c:v", "copy",  # Copy video without re-encoding
+                "-c:a", "aac",   # Encode audio as AAC
+                "-b:a", "128k",  # Audio bitrate
+                output_path
+            ])
+            
+            print(f"Running FFmpeg command: {' '.join(cmd)}")
+            
+            # Run FFmpeg
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                print(f"FFmpeg error: {result.stderr}")
+                return False
+            
+            print(f"Successfully created video with audio overlay: {output_path}")
+            
+            # Clean up temp audio files
             for audio_file, _ in self.audio_files_with_timestamps:
                 if audio_file and os.path.exists(audio_file):
-                    os.remove(audio_file)
-
+                    try:
+                        os.remove(audio_file)
+                    except OSError:
+                        pass  # Ignore cleanup errors
+            
             return True
-
+            
         except Exception as e:
             print(f"Error creating video with audio overlay: {e}")
             return False
