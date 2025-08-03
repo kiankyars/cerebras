@@ -17,7 +17,7 @@ This project implements a real-time AI coaching system that provides voice feedb
 ### Setup
 1. Install dependencies using uv:
    ```bash
-   uv pip install -e .
+   uv sync
    ```
    
 2. Get a Gemini API key from [Google AI Studio](https://aistudio.google.com/)
@@ -33,19 +33,6 @@ Run the AI coach backend with default settings (basketball activity, webcam inpu
 ```bash
 uv run ai_coach.py
 ```
-
-Run with specific activity:
-```bash
-uv run ai_coach.py --activity=yoga
-uv run ai_coach.py --activity=guitar
-```
-
-Run with video file input instead of webcam:
-```bash
-uv run ai_coach.py --video-source=path/to/your/video.mp4
-```
-
-Press 'q' while the video window is focused to quit the application cleanly.
 
 ### How it Works
 1. Video frames are captured from the webcam or video file at 1fps
