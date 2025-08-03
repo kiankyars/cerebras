@@ -183,15 +183,16 @@ export default function Home() {
     console.log('📹 Creating MediaRecorder...');
     console.log('Available MediaRecorder options:', MediaRecorder.isTypeSupported('video/webm'));
     
-    // Try different MediaRecorder options
+    // Try different MediaRecorder options with lower quality
     let mediaRecorder;
     try {
-      // First try with explicit codec
+      // Use lower bitrate for smaller video files
       if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
-        console.log('Using video/webm;codecs=vp8');
+        console.log('Using video/webm;codecs=vp8 with reduced quality');
         mediaRecorder = new MediaRecorder(streamRef.current, {
           mimeType: 'video/webm;codecs=vp8',
-          videoBitsPerSecond: 250000
+          videoBitsPerSecond: 100000,  // Reduced from 250000 to 100000
+          audioBitsPerSecond: 32000    // Lower audio quality too
         });
       } else {
         console.log('Using default MediaRecorder settings');

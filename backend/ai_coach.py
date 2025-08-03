@@ -64,7 +64,7 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
         
         # Get max response length from config (convert words to approximate tokens)
         max_response_words = config.get('max_response_length', 10)
-        max_output_tokens = max_response_words * 2  # Rough approximation: 1 word ≈ 2 tokens
+        max_output_tokens = max(max_response_words * 3, 50)  # Increase tokens and set minimum
         
         # Define JSON schema for feedback response
         feedback_schema = types.Schema(
@@ -78,16 +78,17 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
             required=["feedback"]
         )
         
-        # Create parts with video and prompt
+        # Create parts with video and prompt  
+        print(f"📝 Adding prompt: {prompt_template[:200]}...")
         parts = [
+            types.Part(text=prompt_template),  # Put text FIRST
             types.Part(
                 inline_data=types.Blob(
                     data=video_bytes,
-                    mime_type='video/mp4'
+                    mime_type='video/webm'  # Use webm since that's what we're sending
                 ),
                 video_metadata=types.VideoMetadata(fps=fps)
-            ),
-            types.Part(text=prompt_template)
+            )
         ]
         
         # Generate content with video, metadata, and JSON response format
