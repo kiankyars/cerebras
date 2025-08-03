@@ -57,138 +57,6 @@ FEEDBACK:
     return base_prompt
 
 def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
-    """Send video file to Gemini API for analysis, returns JSON format"""
-    # Check for OpenRouter configuration
-    provider = config.get('provider', False)
-    
-    if provider == "openrouter":
-        return analyze_video_with_openrouter(video_file_path, prompt_template, fps, config)
-    else:
-        return analyze_video_with_gemini_direct(video_file_path, prompt_template, fps, config)
-
-def analyze_video_with_openrouter(video_file_path, prompt_template, fps, config):
-    """Analyze video using Gemini 2.5 Pro via OpenRouter with identical hyperparameters"""
-    try:
-        openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
-        if not openrouter_api_key:
-            raise ValueError("OPENROUTER_API_KEY not found in environment variables")
-        
-        print(f"🌐 Using OpenRouter for Gemini 2.5 Pro analysis...")
-        
-        # Read video file as base64
-        import base64
-        with open(video_file_path, 'rb') as f:
-            video_bytes = f.read()
-        video_base64 = base64.b64encode(video_bytes).decode('utf-8')
-        
-        # Get max response length (identical to direct Gemini)
-        max_response_words = config.get('max_response_length', 10)
-        max_output_tokens = max_response_words * 2
-        
-        # Set thought token limit (internal reasoning tokens)
-        thinking_budget = 500  # Limit internal reasoning tokens
-        
-        print(f"🚀 Calling OpenRouter Gemini 2.5 Pro with {len(video_bytes)} bytes video...")
-        print(f"📝 Prompt text ({len(prompt_template)} chars):")
-        print(f"📝 {prompt_template}")
-        print(f"🎯 Max output tokens: {max_output_tokens}")
-        print(f"🧠 Thinking budget: {thinking_budget} tokens")
-        print(f"📹 Video FPS: {fps}")
-        
-        # OpenRouter API call with identical hyperparameters to direct Gemini
-        response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {openrouter_api_key}",
-                "Content-Type": "application/json",
-                "X-Title": "NED AI Coach"
-            },
-            json={
-                "model": "google/gemini-2.5-pro",
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": f"{prompt_template}\n\nAnalyze this video and provide direct JSON feedback in format: {{\"feedback\": \"your response\"}}"
-                            },
-                            {
-                                "type": "video",
-                                "video": {
-                                    "data": video_base64,
-                                    "format": "webm",
-                                    "fps": fps  # Add FPS metadata (identical to direct Gemini)
-                                }
-                            }
-                        ]
-                    }
-                ],
-                "max_tokens": max_output_tokens + thinking_budget,
-                "temperature": 0.1,  # Identical to direct Gemini default
-                "response_format": {"type": "json_object"},  # Force JSON response (identical to direct Gemini)
-                "tools": [  # Add JSON schema for structured output (identical to direct Gemini)
-                    {
-                        "type": "function",
-                        "function": {
-                            "name": "provide_feedback",
-                            "description": f"Provide coaching feedback limited to {max_response_words} words maximum",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {
-                                    "feedback": {
-                                        "type": "string",
-                                        "description": f"Coaching feedback limited to {max_response_words} words maximum"
-                                    }
-                                },
-                                "required": ["feedback"]
-                            }
-                        }
-                    }
-                ],
-                "tool_choice": {"type": "function", "function": {"name": "provide_feedback"}}
-            }
-        )
-        
-        if response.status_code != 200:
-            raise Exception(f"OpenRouter API error: {response.status_code} - {response.text}")
-        
-        result = response.json()
-        print(f"📦 OpenRouter response: {result}")
-        
-        if 'choices' in result and len(result['choices']) > 0:
-            content = result['choices'][0]['message']['content']
-            print(f"✅ OpenRouter content: {content}")
-            
-            # Check for tool calls (structured JSON response)
-            if 'tool_calls' in result['choices'][0]['message']:
-                tool_call = result['choices'][0]['message']['tool_calls'][0]
-                if tool_call['function']['name'] == 'provide_feedback':
-                    try:
-                        feedback_json = json.loads(tool_call['function']['arguments'])
-                        print(f"✅ Structured JSON feedback: {feedback_json}")
-                        return feedback_json
-                    except json.JSONDecodeError as e:
-                        print(f"⚠️ JSON parse error in tool call: {e}")
-                        return {"feedback": tool_call['function']['arguments']}
-            
-            # Fallback: Try to parse content as JSON
-            try:
-                feedback_json = json.loads(content)
-                return feedback_json
-            except json.JSONDecodeError:
-                # If not valid JSON, wrap in feedback object
-                return {"feedback": content}
-        else:
-            return {"feedback": "No response from OpenRouter"}
-            
-    except Exception as e:
-        print(f"❌ Error in OpenRouter analysis: {e}")
-        import traceback
-        print(f"❌ Full traceback: {traceback.format_exc()}")
-        return {"feedback": f"Error in OpenRouter analysis: {str(e)}"}
-
-def analyze_video_with_gemini_direct(video_file_path, prompt_template, fps, config):
     """Analyze video using direct Gemini API"""
     try:
         print(f"🚀 Using Direct Gemini API for analysis...")
@@ -249,7 +117,7 @@ def analyze_video_with_gemini_direct(video_file_path, prompt_template, fps, conf
                 response_schema=feedback_schema,
                 max_output_tokens=max_output_tokens,
                 thinking_config=types.ThinkingConfig(
-                    include_thoughts=True,
+                    include_thoughts=False,
                     thinking_budget=thinking_budget
                 ),
                 media_resolution='MEDIA_RESOLUTION_LOW'  # 64 tokens/frame vs 256 tokens/frame
