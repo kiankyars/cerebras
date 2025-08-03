@@ -63,7 +63,10 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
         
         # Get max response length from config (convert words to approximate tokens)
         max_response_words = config.get('max_response_length', 10)
-        max_output_tokens = max_response_words * 2  # Rough approximation: 1 word ≈ 2 tokens
+        # WORKAROUND: Set to None due to Gemini thinking model bug
+        # See: https://github.com/googleapis/python-genai/issues/782
+        # Bug: thinking_tokens + output_tokens counted against max_output_tokens
+        max_output_tokens = None  # Let JSON schema enforce word limit instead
         
         # Define JSON schema for feedback response
         feedback_schema = types.Schema(
@@ -90,14 +93,18 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
         ]
         
         # Generate content with video, metadata, and JSON response format
+        # Build config conditionally to handle None max_output_tokens
+        config_params = {
+            'response_mime_type': 'application/json',
+            'response_schema': feedback_schema
+        }
+        if max_output_tokens is not None:
+            config_params['max_output_tokens'] = max_output_tokens
+        
         response = client.models.generate_content(
             model="gemini-2.5-pro",
             contents=types.Content(parts=parts),
-            config=types.GenerateContentConfig(
-                response_mime_type='application/json',
-                response_schema=feedback_schema,
-                max_output_tokens=max_output_tokens
-            )
+            config=types.GenerateContentConfig(**config_params)
         )
         
         # Extract and parse the JSON response
