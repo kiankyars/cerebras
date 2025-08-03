@@ -41,14 +41,12 @@ export default function Home() {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
+      disconnect();
       if (timeIntervalRef.current) {
         clearInterval(timeIntervalRef.current);
       }
     };
-  }, []);
+  }, [disconnect]);
   
   const fetchConfigs = async () => {
     setIsLoading(true);
