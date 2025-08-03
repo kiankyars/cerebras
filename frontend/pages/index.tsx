@@ -75,15 +75,8 @@ export default function Home() {
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          width: { ideal: 640 },   // 480p width
-          height: { ideal: 480 },  // 480p height  
-          frameRate: { ideal: 15 } // Lower frame rate
-        },
-        audio: {
-          sampleRate: 22050,  // Lower audio sample rate
-          channelCount: 1     // Mono audio
-        }
+        video: { width: 1280, height: 720 },
+        audio: true
       });
       
       if (videoRef.current) {
@@ -190,16 +183,15 @@ export default function Home() {
     console.log('📹 Creating MediaRecorder...');
     console.log('Available MediaRecorder options:', MediaRecorder.isTypeSupported('video/webm'));
     
-    // Try different MediaRecorder options with lower quality
+    // Try different MediaRecorder options
     let mediaRecorder;
     try {
-      // Use lower bitrate for smaller video files
+      // First try with explicit codec
       if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
-        console.log('Using video/webm;codecs=vp8 with reduced quality');
+        console.log('Using video/webm;codecs=vp8');
         mediaRecorder = new MediaRecorder(streamRef.current, {
           mimeType: 'video/webm;codecs=vp8',
-          videoBitsPerSecond: 100000,  // Reduced from 250000 to 100000
-          audioBitsPerSecond: 32000    // Lower audio quality too
+          videoBitsPerSecond: 250000
         });
       } else {
         console.log('Using default MediaRecorder settings');

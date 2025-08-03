@@ -65,7 +65,8 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
         # Get max response length from config (convert words to approximate tokens)
         max_response_words = config.get('max_response_length', 10)
         # Increase token allowance significantly for video analysis responses
-        max_output_tokens = max(200, max_response_words * 5)  # Minimum 200 tokens for responses
+        max_output_tokens = max(1000, max_response_words * 20)  # Minimum 1000 tokens for responses
+        print(f"📈 Config max_response_length: {max_response_words} words → {max_output_tokens} tokens")
         
         # Define JSON schema for feedback response
         feedback_schema = types.Schema(
@@ -80,6 +81,12 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
         )
         
         # Create parts with video and prompt
+        print(f"🚀 Calling Gemini API with {len(video_bytes)} bytes video...")
+        print(f"📝 Prompt text ({len(prompt_template)} chars):")
+        print(f"📝 {prompt_template}")
+        print(f"🎯 Max output tokens: {max_output_tokens}")
+        print(f"📹 Video FPS: {fps}")
+        
         parts = [
             types.Part(
                 inline_data=types.Blob(
