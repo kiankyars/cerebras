@@ -327,35 +327,55 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
             try:
                 data = await asyncio.wait_for(websocket.receive_text(), timeout=0.1)
                 message = json.loads(data)
+                print(f"📨 Received WebSocket message: {message.get('type', 'unknown')}")
                 
                 if message.get("type") == "analyze":
+                    print(f"🔍 Received analyze message for session {session_id}")
                     video_data = message.get("videoData")
                     if video_data:
+                        print(f"📹 Video data received, size: {len(video_data)} characters")
                         # Save video data to temporary file
                         import base64
+                        import time
                         temp_video_path = f"temp_segments/live_{session_id}_{int(time.time())}.webm"
                         os.makedirs("temp_segments", exist_ok=True)
+                        print(f"💾 Saving video to: {temp_video_path}")
                         
-                        with open(temp_video_path, "wb") as f:
-                            f.write(base64.b64decode(video_data))
-                        
-                        # Analyze the video segment
-                        feedback_json = analyze_video_with_gemini(temp_video_path, prompt_template, fps, config)
-                        feedback_text = feedback_json.get("feedback", "No feedback available")
-                        
-                        # Send feedback
-                        await websocket.send_json({
-                            "type": "feedback",
-                            "text": feedback_text,
-                            "timestamp": asyncio.get_event_loop().time()
-                        })
-                        
-                        # Play audio feedback
-                        tts_manager.add_to_queue(feedback_text)
-                        
-                        # Clean up
-                        os.unlink(temp_video_path)
+                        try:
+                            with open(temp_video_path, "wb") as f:
+                                f.write(base64.b64decode(video_data))
+                            print(f"✅ Video file saved successfully")
+                            
+                            # Analyze the video segment
+                            print(f"🤖 Starting Gemini analysis...")
+                            feedback_json = analyze_video_with_gemini(temp_video_path, prompt_template, fps, config)
+                            feedback_text = feedback_json.get("feedback", "No feedback available")
+                            print(f"💬 Analysis result: {feedback_text[:100]}...")
+                            
+                            # Send feedback
+                            await websocket.send_json({
+                                "type": "feedback",
+                                "text": feedback_text,
+                                "timestamp": asyncio.get_event_loop().time()
+                            })
+                            print(f"📤 Feedback sent via WebSocket")
+                            
+                            # Play audio feedback
+                            tts_manager.add_to_queue(feedback_text)
+                            print(f"🔊 Added to TTS queue")
+                            
+                            # Clean up
+                            os.unlink(temp_video_path)
+                            print(f"🗑️ Cleaned up temp file")
+                            
+                        except Exception as e:
+                            print(f"❌ Error processing video: {e}")
+                            await websocket.send_json({
+                                "type": "error", 
+                                "message": f"Error processing video: {str(e)}"
+                            })
                     else:
+                        print(f"⚠️ No video data in analyze message")
                         await websocket.send_json({
                             "type": "error", 
                             "message": "No video data received"
@@ -365,6 +385,7 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
                     break
             
             except asyncio.TimeoutError:
+                # This is normal - just waiting for messages
                 continue
             except WebSocketDisconnect:
                 break
