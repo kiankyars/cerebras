@@ -7,7 +7,7 @@
   "deploy": {
     "runtime": "V2",
     "numReplicas": 1,
-    "startCommand": "cd backend && uv run uvicorn app:app",
+    "startCommand": "cd backend && uv run uvicorn app:app --host 0.0.0.0 --port 8000",
     "healthcheckPath": "/health",
     "sleepApplication": false,
     "multiRegionConfig": {
