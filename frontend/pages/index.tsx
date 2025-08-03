@@ -75,8 +75,15 @@ export default function Home() {
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { width: 1280, height: 720 },
-        audio: true
+        video: { 
+          width: { ideal: 640 },   // 480p width
+          height: { ideal: 480 },  // 480p height  
+          frameRate: { ideal: 15 } // Lower frame rate
+        },
+        audio: {
+          sampleRate: 22050,  // Lower audio sample rate
+          channelCount: 1     // Mono audio
+        }
       });
       
       if (videoRef.current) {
