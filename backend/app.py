@@ -15,8 +15,9 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from ai_coach import analyze_video_with_gemini, capture_live_segment, create_system_prompt, load_config, split_video_into_segments
+from ai_coach import analyze_video_with_gemini, capture_live_segment, create_system_prompt, split_video_into_segments
 from tts_manager import TTSManager
+from utils.config_manager import ConfigManager
 
 app = FastAPI(title="FR8 AI Coach API", version="0.1.0")
 
@@ -31,6 +32,7 @@ app.add_middleware(
 
 # Global storage for active sessions
 active_sessions: Dict[str, Dict] = {}
+config_manager = ConfigManager("configs")
 
 class ConnectionManager:
     def __init__(self):
@@ -57,35 +59,29 @@ async def health_check():
 @app.get("/configs")
 async def list_configs():
     """List available coaching configurations"""
-    configs_dir = Path("backend/configs")
-    config_files = []
-    
-    for config_file in configs_dir.glob("*.json"):
-        try:
-            config = load_config(config_file)
-            config_files.append({
-                "id": config_file.stem,
-                "name": config.get("activity", config_file.stem),
-                "description": config.get("description", ""),
-                "path": str(config_file)
-            })
-        except Exception as e:
-            continue
-    
-    return {"configs": config_files}
+    configs = config_manager.list_all_configs()
+    return {"configs": configs}
+
+@app.get("/configs/categories")
+async def list_categories():
+    """List available configuration categories"""
+    categories = config_manager.list_categories()
+    return {"categories": categories}
+
+@app.get("/configs/categories/{category}")
+async def list_configs_by_category(category: str):
+    """List configurations for a specific category"""
+    configs = config_manager.list_configs_by_category(category)
+    return {"configs": configs}
 
 @app.get("/configs/{config_id}")
 async def get_config(config_id: str):
     """Get specific configuration"""
-    config_path = f"backend/configs/{config_id}.json"
-    if not os.path.exists(config_path):
+    config = config_manager.load_config_by_id(config_id)
+    if not config:
         raise HTTPException(status_code=404, detail="Configuration not found")
     
-    try:
-        config = load_config(config_path)
-        return {"config": config}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error loading config: {str(e)}")
+    return {"config": config}
 
 @app.post("/sessions/upload")
 async def create_upload_session(
@@ -97,8 +93,8 @@ async def create_upload_session(
     session_id = str(uuid.uuid4())
     
     # Validate config
-    config_path = f"backend/configs/{config_id}.json"
-    if not os.path.exists(config_path):
+    config_path = config_manager.find_config_path(config_id)
+    if not config_path:
         raise HTTPException(status_code=404, detail="Configuration not found")
     
     # Save uploaded video
@@ -131,8 +127,8 @@ async def create_live_session(
     session_id = str(uuid.uuid4())
     
     # Validate config
-    config_path = f"backend/configs/{config_id}.json"
-    if not os.path.exists(config_path):
+    config_path = config_manager.find_config_path(config_id)
+    if not config_path:
         raise HTTPException(status_code=404, detail="Configuration not found")
     
     # Store session info
@@ -155,7 +151,7 @@ async def start_session(session_id: str):
         raise HTTPException(status_code=404, detail="Session not found")
     
     session = active_sessions[session_id]
-    config = load_config(session["config_path"])
+    config = config_manager.load_config_by_path(session["config_path"])
     
     try:
         if session["type"] == "upload":
@@ -308,7 +304,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 
 async def handle_live_session(websocket: WebSocket, session_id: str, session: dict):
     """Handle live video analysis via WebSocket"""
-    config = load_config(session["config_path"])
+    config = config_manager.load_config_by_path(session["config_path"])
     tts_provider = session["tts_provider"]
     
     # Initialize TTS manager for live mode

@@ -46,6 +46,7 @@
 - I will also need to have max session lengths and video durations that are increased if you're on the premium plan
 - Coaching style will be another hyperparameter, this is going to be so good, and bitter-lesson pilled
 - memory on the user
+- workouts with friends
 
 ## Technical Notes
 - Gemini and Cerebras TTS are not working
