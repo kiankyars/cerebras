@@ -1,9 +1,0 @@
-Metadata-Version: 2.4
-Name: fr8-ai-coach
-Version: 0.1.0
-Summary: Real-time AI coaching backend with video capture and voice feedback
-Requires-Dist: opencv-python
-Requires-Dist: google-generativeai
-Requires-Dist: python-dotenv
-Requires-Dist: google-genai>=1.28.0
-Requires-Dist: openai>=1.98.0

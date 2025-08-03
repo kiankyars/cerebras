@@ -79,4 +79,7 @@ Apply to temp_speech....
 Keep it under 200 words. The prompt should be a template with placeholders for activity-specific details, not a novel.
 Focus on the core coaching loop: validate → analyze → feedback → encourage.
 
-statistics
+statistics will be optional in the future
+
+
+I will eventually supply the previous recommendations in the prompt to the model so that it has context on what happened before.

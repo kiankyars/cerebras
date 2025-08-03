@@ -1,8 +1,0 @@
-README.md
-pyproject.toml
-fr8_ai_coach.egg-info/PKG-INFO
-fr8_ai_coach.egg-info/SOURCES.txt
-fr8_ai_coach.egg-info/dependency_links.txt
-fr8_ai_coach.egg-info/requires.txt
-fr8_ai_coach.egg-info/top_level.txt
-inspiration/ball.py

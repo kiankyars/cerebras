@@ -1,5 +1,6 @@
 {
   "activity": "basketball",
   "skill_level": "beginner",
-  "feedback_frequency": 10
+  "feedback_frequency": 10,
+  "fps": 5
 } 
