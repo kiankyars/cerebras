@@ -157,57 +157,40 @@ def split_video_into_segments(input_video_path, segment_duration, output_dir="da
         video_info = json.loads(result.stdout)
         total_duration = float(video_info['format']['duration'])
         
-        # Calculate segments including the last one with remaining time
-        num_complete_segments = int(total_duration // segment_duration)
+        # Calculate segments, combining last segment with any remaining time
         remaining_time = total_duration % segment_duration
+        num_segments = int(total_duration // segment_duration)
         
         print(f"Video duration: {total_duration:.1f}s")
-        print(f"Processing {num_complete_segments} complete {segment_duration}s segments")
-        if remaining_time > 0:
-            print(f"Including final {remaining_time:.1f}s segment")
+        print(f"Processing {num_segments} segments")
         
         segment_files = []
         
-        # Split into complete segments
-        for i in range(num_complete_segments):
+        # Split into segments, extending last one to include remaining time
+        for i in range(num_segments):
             start_time = i * segment_duration
             output_file = f"{output_dir}/segment_{i:03d}.mp4"
+            
+            # For the last segment, include any remaining time
+            if i == num_segments - 1 and remaining_time > 0:
+                duration = segment_duration + remaining_time
+            else:
+                duration = segment_duration
             
             cmd = [
                 "ffmpeg", "-y", "-i", input_video_path,
                 "-ss", str(start_time),
-                "-t", str(segment_duration),
+                "-t", str(duration),
                 "-c", "copy",  # Copy without re-encoding for speed
                 output_file
             ]
             
             result = subprocess.run(cmd, capture_output=True, text=True)
             if result.returncode == 0:
-                segment_files.append((output_file, start_time, segment_duration))
-                print(f"Created segment {i+1}: {start_time}s-{start_time + segment_duration}s")
+                segment_files.append((output_file, start_time, duration))
+                print(f"Created segment {i+1}: {start_time}s-{start_time + duration}s")
             else:
                 print(f"Error creating segment {i}: {result.stderr}")
-        
-        # Add the final segment if there's remaining time
-        if remaining_time > 0:
-            i = num_complete_segments
-            start_time = i * segment_duration
-            output_file = f"{output_dir}/segment_{i:03d}.mp4"
-            
-            cmd = [
-                "ffmpeg", "-y", "-i", input_video_path,
-                "-ss", str(start_time),
-                "-t", str(remaining_time),
-                "-c", "copy",
-                output_file
-            ]
-            
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode == 0:
-                segment_files.append((output_file, start_time, remaining_time))
-                print(f"Created final segment: {start_time}s-{start_time + remaining_time}s")
-            else:
-                print(f"Error creating final segment: {result.stderr}")
         
         return segment_files
         
