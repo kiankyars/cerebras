@@ -102,7 +102,8 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
             config=types.GenerateContentConfig(
                 response_mime_type='application/json',
                 response_schema=feedback_schema,
-                max_output_tokens=max_output_tokens
+                max_output_tokens=max_output_tokens,
+                media_resolution='MEDIA_RESOLUTION_LOW'  # 64 tokens/frame vs 256 tokens/frame
             )
         )
 
