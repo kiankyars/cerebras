@@ -51,3 +51,30 @@ Each board will have its own settings, but then the user can prompt just like Cu
 the prompt should also say, if the user is not doing at all what is chosen, then sya this is the wrong activity
 
 eventually will have memory on the user in the roadmap
+
+
+Safety & Validation
+Wrong activity detection - "You're doing yoga, not basketball"
+No activity happening - "I don't see any movement"
+Poor lighting/camera - "I can't see you clearly"
+User Experience
+Encouragement - "Great form!" / "Keep going!"
+Progressive feedback - Start basic, get more detailed
+Time awareness - "You've been at this for 5 minutes"
+Technical Constraints
+Frame rate limits - "Processing at 1fps"
+Confidence levels - "I'm 80% sure about this feedback"
+Fallback responses - "I can't analyze this movement"
+Personalization Hooks
+Skill level detection - "This looks like beginner form"
+Progress tracking - "You've improved since last time"
+Goal awareness - "Remember, you're working on flexibility"
+Core Structure
+Apply to temp_speech....
+1. Activity validation
+2. Form analysis
+3. Specific feedback
+4. Encouragement
+5. Next steps
+Keep it under 200 words. The prompt should be a template with placeholders for activity-specific details, not a novel.
+Focus on the core coaching loop: validate → analyze → feedback → encourage.
