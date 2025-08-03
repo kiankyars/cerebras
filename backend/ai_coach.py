@@ -86,17 +86,13 @@ def analyze_video_with_openrouter(video_file_path, prompt_template, fps, config)
         max_output_tokens = max_response_words * 2
         
         # Set thought token limit (internal reasoning tokens)
-        max_thought_tokens = 500  # Limit internal reasoning
-        
-        # Calculate total max tokens: thought tokens + output tokens
-        max_total_tokens = max_thought_tokens + max_output_tokens
+        thinking_budget = 500  # Limit internal reasoning tokens
         
         print(f"🚀 Calling OpenRouter Gemini 2.5 Pro with {len(video_bytes)} bytes video...")
         print(f"📝 Prompt text ({len(prompt_template)} chars):")
         print(f"📝 {prompt_template}")
         print(f"🎯 Max output tokens: {max_output_tokens}")
-        print(f"🧠 Max thought tokens: {max_thought_tokens}")
-        print(f"📊 Total max tokens: {max_total_tokens} (thought: {max_thought_tokens} + output: {max_output_tokens})")
+        print(f"🧠 Thinking budget: {thinking_budget} tokens")
         print(f"📹 Video FPS: {fps}")
         
         # OpenRouter API call with identical hyperparameters to direct Gemini
@@ -128,7 +124,7 @@ def analyze_video_with_openrouter(video_file_path, prompt_template, fps, config)
                         ]
                     }
                 ],
-                "max_tokens": max_total_tokens,
+                "max_tokens": max_output_tokens + thinking_budget,
                 "temperature": 0.1,  # Identical to direct Gemini default
                 "response_format": {"type": "json_object"},  # Force JSON response (identical to direct Gemini)
                 "tools": [  # Add JSON schema for structured output (identical to direct Gemini)
@@ -205,14 +201,10 @@ def analyze_video_with_gemini_direct(video_file_path, prompt_template, fps, conf
         max_output_tokens = max_response_words * 2
         
         # Set thought token limit (internal reasoning tokens)
-        max_thought_tokens = 300  # Limit internal reasoning
-        
-        # Calculate total max tokens: thought tokens + output tokens
-        max_total_tokens = max_thought_tokens + max_output_tokens
+        thinking_budget = 300  # Limit internal reasoning tokens
         
         print(f"📈 Config max_response_length: {max_response_words} words → {max_output_tokens} tokens")
-        print(f"🧠 Max thought tokens: {max_thought_tokens}")
-        print(f"📊 Total max tokens: {max_total_tokens} (thought: {max_thought_tokens} + output: {max_output_tokens})")
+        print(f"🧠 Thinking budget: {thinking_budget} tokens")
         
         # Define JSON schema for feedback response
         feedback_schema = types.Schema(
@@ -256,8 +248,10 @@ def analyze_video_with_gemini_direct(video_file_path, prompt_template, fps, conf
                 response_mime_type='application/json',
                 response_schema=feedback_schema,
                 max_output_tokens=max_output_tokens,
-                max_thought_tokens=max_thought_tokens,
-                max_total_tokens=max_total_tokens,
+                thinking_config=types.ThinkingConfig(
+                    include_thoughts=True,
+                    thinking_budget=thinking_budget
+                ),
                 media_resolution='MEDIA_RESOLUTION_LOW'  # 64 tokens/frame vs 256 tokens/frame
             )
         )
