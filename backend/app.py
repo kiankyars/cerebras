@@ -312,15 +312,20 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
     tts_manager = TTSManager(provider=tts_provider, mode="live")
     
     # Create prompt
-    fps = config.get('fps')
+    fps = config.get('fps', 30)
     prompt_template = create_system_prompt(config, fps)
+    analysis_interval = config.get('feedback_frequency', 3)  # Default to 3 seconds
+    
+    print(f"🎯 Live session configured with {analysis_interval}s analysis interval")
     
     try:
         # Send confirmation that session is ready
         await websocket.send_json({
             "type": "ready", 
-            "message": "Live session ready for video analysis"
+            "message": f"Live session ready for video analysis (interval: {analysis_interval}s)"
         })
+        
+        last_analysis_time = 0
         
         while True:
             # Wait for client to send video data or commands
@@ -333,6 +338,19 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
                     print(f"🔍 Received analyze message for session {session_id}")
                     video_data = message.get("videoData")
                     if video_data:
+                        current_time = asyncio.get_event_loop().time()
+                        
+                        # Check if enough time has passed since last analysis
+                        if current_time - last_analysis_time < analysis_interval:
+                            time_remaining = analysis_interval - (current_time - last_analysis_time)
+                            print(f"⏰ Skipping analysis - {time_remaining:.1f}s remaining until next interval")
+                            await websocket.send_json({
+                                "type": "skipped",
+                                "message": f"Analysis skipped - {time_remaining:.1f}s until next interval",
+                                "time_remaining": time_remaining
+                            })
+                            continue
+                        
                         print(f"📹 Video data received, size: {len(video_data)} characters")
                         # Save video data to temporary file
                         import base64
@@ -352,11 +370,15 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
                             feedback_text = feedback_json.get("feedback", "No feedback available")
                             print(f"💬 Analysis result: {feedback_text}")
                             
+                            # Update last analysis time
+                            last_analysis_time = current_time
+                            
                             # Send feedback
                             await websocket.send_json({
                                 "type": "feedback",
                                 "text": feedback_text,
-                                "timestamp": asyncio.get_event_loop().time()
+                                "timestamp": current_time,
+                                "next_analysis_in": analysis_interval
                             })
                             print(f"📤 Feedback sent via WebSocket")
                             

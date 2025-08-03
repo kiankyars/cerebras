@@ -72,62 +72,90 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
             with open(video_file_path, 'rb') as f:
                 video_bytes = f.read()
             
-            # Check video file size - if too large, this might cause issues
-            video_size_mb = len(video_bytes) / (1024 * 1024)
-            print(f"📹 Video size: {video_size_mb:.2f} MB")
-            
-            if video_size_mb > 10:  # If video is larger than 10MB, it might cause issues
-                print(f"⚠️ Video is large ({video_size_mb:.2f} MB), this might cause API issues")
-            
-            # Simplified request without JSON schema - more reliable
+            # Define JSON schema for feedback response
+            feedback_schema = types.Schema(
+                type="OBJECT",
+                properties={
+                    "feedback": types.Schema(
+                        type="STRING",
+                    )
+                },
+                required=["feedback"]
+            )
             parts = [
                 types.Part(
                     inline_data=types.Blob(
                         data=video_bytes,
-                        mime_type='video/webm'
+                        mime_type='video/webm'  # Use webm since that's what we're saving
+                    ),
+                    video_metadata=types.VideoMetadata(
+                        fps=fps,
+                        # Note: media_resolution is set in GenerateContentConfig, not here
                     )
                 ),
-                types.Part(text=prompt_template + "\n\nRespond with ONLY a JSON object containing a 'feedback' field.")
+                types.Part(text=prompt_template)
             ]
             
-            # Generate content with simplified config
+            # Generate content with video, metadata, and JSON response format
+            # Use low media resolution for token efficiency (66 vs 258 tokens per frame)
             response = fresh_client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=types.Content(parts=parts),
                 config=types.GenerateContentConfig(
-                    media_resolution='MEDIA_RESOLUTION_LOW'
+                    response_mime_type='application/json',
+                    response_schema=feedback_schema,
+                    media_resolution='MEDIA_RESOLUTION_LOW'  # 64 tokens/frame vs 256 tokens/frame
                 )
             )
 
             print(f"📦 Raw Gemini response type: {type(response)}")
+            print(f"📦 Raw Gemini response: {response}")
             if hasattr(response, 'candidates'):
                 print(f"📄 Response has {len(response.candidates) if response.candidates else 0} candidates")
             
+            # Check for API errors in response
+            if hasattr(response, 'prompt_feedback') and response.prompt_feedback:
+                print(f"⚠️ Prompt feedback: {response.prompt_feedback}")
+            
+            if hasattr(response, 'usage_metadata') and response.usage_metadata:
+                print(f"📊 Usage: {response.usage_metadata}")
+            
             if response.candidates:
+                # When response_mime_type is 'application/json', the response should be directly accessible
                 candidate = response.candidates[0]
+                print(f"📋 Candidate: {candidate}")
                 if hasattr(candidate, 'content'):
                     content = candidate.content
                     print(f"📎 Content: {content}")
-                    
-                    # Try to extract text from content
-                    if hasattr(content, 'parts') and len(content.parts) > 0:
-                        part = content.parts[0]
-                        if hasattr(part, 'text') and part.text:
-                            text = part.text.strip()
-                            print(f"📝 Extracted text: '{text}'")
-                            
-                            # Try to parse as JSON
+                    print(f"📎 Content type: {type(content)}")
+                    # If the content is already a dict-like object, return it directly
+                    if isinstance(content, dict):
+                        print(f"✅ Content is dict: {content}")
+                        return content
+                    # If it's a string, try to parse it as JSON
+                    elif isinstance(content, str):
+                        print(f"📝 Content is string: '{content}'")
+                        if content.strip():
                             try:
-                                result = json.loads(text)
+                                result = json.loads(content)
                                 print(f"✅ Successfully parsed JSON: {result}")
                                 return result
+                            except json.JSONDecodeError as e:
+                                print(f"⚠️ JSON parse error: {e}")
+                                return {"feedback": content}
+                        else:
+                            print(f"⚠️ Empty content string")
+                            return {"feedback": "No feedback available"}
+                    # If it's an object with parts, try to extract the text
+                    elif hasattr(content, 'parts') and len(content.parts) > 0:
+                        part = content.parts[0]
+                        if hasattr(part, 'text') and part.text:
+                            try:
+                                return json.loads(part.text)
                             except json.JSONDecodeError:
-                                # If not JSON, return as plain feedback
-                                return {"feedback": text}
+                                return {"feedback": part.text}
                         else:
                             return {"feedback": "No feedback available"}
-                    else:
-                        return {"feedback": "No feedback available"}
                 return {"feedback": "No feedback available"}
             else:
                 return {"feedback": "No feedback available"}
@@ -137,29 +165,9 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
             import traceback
             print(f"Full error traceback: {traceback.format_exc()}")
             
-            # If this is the last attempt, try fallback text-only approach
+            # If this is the last attempt, return error
             if attempt == max_retries - 1:
-                print(f"🔄 Trying fallback text-only approach...")
-                try:
-                    # Fallback: text-only request
-                    fallback_prompt = f"{prompt_template}\n\nSince video analysis failed, provide general coaching feedback for {config.get('activity', 'this activity')}."
-                    
-                    fallback_response = fresh_client.models.generate_content(
-                        model="gemini-2.5-flash",
-                        contents=types.Content(parts=[types.Part(text=fallback_prompt)]),
-                        config=types.GenerateContentConfig()
-                    )
-                    
-                    if fallback_response.candidates:
-                        candidate = fallback_response.candidates[0]
-                        if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
-                            text = candidate.content.parts[0].text.strip()
-                            return {"feedback": text}
-                    
-                    return {"feedback": f"Error in analysis: {str(e)}"}
-                except Exception as fallback_e:
-                    print(f"Fallback also failed: {fallback_e}")
-                    return {"feedback": f"Error in analysis: {str(e)}"}
+                return {"feedback": f"Error in analysis: {str(e)}"}
             
             # Otherwise, wait and retry
             print(f"Retrying in {retry_delay} seconds...")
