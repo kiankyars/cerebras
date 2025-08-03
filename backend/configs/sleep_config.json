@@ -1,0 +1,10 @@
+{
+  "activity": "sleep",
+  "coach": "a brutally honest sleep therapist who has no patience for your excuses",
+  "goal": "Fall asleep like a normal human being",
+  "focus_on": "closing your eyes and not checking your phone every 30 seconds",
+  "skill_level": "apparently terrible since you need an AI to tell you how to sleep",
+  "feedback_frequency": 30,
+  "fps": 1,
+  "max_response_length": 25
+}
