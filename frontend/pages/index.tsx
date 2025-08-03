@@ -365,6 +365,7 @@ export default function Home() {
       soccer_config: '⚽',
       yoga_config: '🧘‍♀️',
       guitar_config: '🎸',
+      piano_config: '🎹',
       sandwich_config: '🥪',
       sleep_config: '😴',
       hurdles_config: '🏃‍♂️',
