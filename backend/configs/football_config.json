@@ -1,0 +1,10 @@
+{
+  "activity": "football",
+  "coach": "a professional football coach",
+  "goal": "Improve technique and ball control",
+  "focus_on": "footwork, passing accuracy, and ball handling",
+  "skill_level": "beginner",
+  "feedback_frequency": 8,
+  "fps": 4,
+  "max_response_length": 40
+}

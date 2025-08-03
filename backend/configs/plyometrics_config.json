@@ -1,0 +1,10 @@
+{
+  "activity": "plyometrics",
+  "coach": "a professional fitness trainer",
+  "goal": "Improve explosive power and athletic performance",
+  "focus_on": "jump mechanics, landing technique, and form",
+  "skill_level": "intermediate",
+  "feedback_frequency": 8,
+  "fps": 4,
+  "max_response_length": 45
+}

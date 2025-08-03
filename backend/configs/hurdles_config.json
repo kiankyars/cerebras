@@ -1,0 +1,10 @@
+{
+  "activity": "hurdles",
+  "coach": "a professional track coach",
+  "goal": "Improve hurdling technique and speed",
+  "focus_on": "form, rhythm, and clearance technique",
+  "skill_level": "intermediate",
+  "feedback_frequency": 6,
+  "fps": 6,
+  "max_response_length": 35
+}

@@ -1,0 +1,10 @@
+{
+  "activity": "paddle ball",
+  "coach": "a professional paddle sports instructor",
+  "goal": "Improve hand-eye coordination and technique",
+  "focus_on": "paddle grip, ball contact, and movement",
+  "skill_level": "beginner",
+  "feedback_frequency": 10,
+  "fps": 5,
+  "max_response_length": 30
+}
