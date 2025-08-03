@@ -30,7 +30,6 @@ def load_config(config_path):
 
 def create_system_prompt(config, fps):
     activity = config["activity"]
-    coach = config.get("coach")  # Default fallback
 
     analysis_parts = []
 
@@ -45,13 +44,14 @@ def create_system_prompt(config, fps):
 
     analysis_section = "\n".join(analysis_parts) if analysis_parts else "- Focus on my basic form"
 
-    base_prompt = f"""You are a real-time {activity} coach. Help me like you're {coach}. FPS is {fps}.
+    base_prompt = f"""You are a real-time {activity} coach. Help me like you're Michael Jordan. FPS is {fps}.
 FEEDBACK:
 {analysis_section}
 - ALWAYS be direct
 - NO timestamps
 """
-    
+    print(base_prompt)
+    # quit()
     return base_prompt
 
 def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
@@ -63,10 +63,7 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
         
         # Get max response length from config (convert words to approximate tokens)
         max_response_words = config.get('max_response_length', 10)
-        # WORKAROUND: Set to None due to Gemini thinking model bug
-        # See: https://github.com/googleapis/python-genai/issues/782
-        # Bug: thinking_tokens + output_tokens counted against max_output_tokens
-        max_output_tokens = None  # Let JSON schema enforce word limit instead
+        max_output_tokens = max_response_words * 2  # Rough approximation: 1 word ≈ 2 tokens
         
         # Define JSON schema for feedback response
         feedback_schema = types.Schema(
@@ -93,33 +90,46 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
         ]
         
         # Generate content with video, metadata, and JSON response format
-        # Build config conditionally to handle None max_output_tokens
-        config_params = {
-            'response_mime_type': 'application/json',
-            'response_schema': feedback_schema
-        }
-        if max_output_tokens is not None:
-            config_params['max_output_tokens'] = max_output_tokens
-        
         response = client.models.generate_content(
             model="gemini-2.5-pro",
             contents=types.Content(parts=parts),
-            config=types.GenerateContentConfig(**config_params)
+            config=types.GenerateContentConfig(
+                response_mime_type='application/json',
+                response_schema=feedback_schema,
+                max_output_tokens=max_output_tokens
+            )
         )
-        # Extract and parse the JSON response
-        if response.candidates and len(response.candidates) > 0:
-            response_text = response.candidates[0].content.parts[0].text
-            try:
-                # Parse the JSON response
-                feedback_json = json.loads(response_text)
-                return feedback_json
-            except json.JSONDecodeError as e:
-                print(f"Error parsing JSON response: {e}")
-                print(f"Raw response: {response_text}")
-                return {"feedback": "Error parsing response"}
+
+        if response.candidates:
+            # When response_mime_type is 'application/json', the response should be directly accessible
+            candidate = response.candidates[0]
+            if hasattr(candidate, 'content'):
+                content = candidate.content
+                # If the content is already a dict-like object, return it directly
+                if isinstance(content, dict):
+                    return content
+                # If it's a string, try to parse it as JSON
+                elif isinstance(content, str):
+                    if content.strip():
+                        try:
+                            return json.loads(content)
+                        except json.JSONDecodeError:
+                            return {"feedback": content}
+                    else:
+                        return {"feedback": "No feedback available"}
+                # If it's an object with parts, try to extract the text
+                elif hasattr(content, 'parts') and len(content.parts) > 0:
+                    part = content.parts[0]
+                    if hasattr(part, 'text') and part.text:
+                        try:
+                            return json.loads(part.text)
+                        except json.JSONDecodeError:
+                            return {"feedback": part.text}
+                    else:
+                        return {"feedback": "No feedback available"}
+            return {"feedback": "No feedback available"}
         else:
-            print("No candidates in response")
-            return {"feedback": "No response generated"}
+            return {"feedback": "No feedback available"}
             
     except Exception as e:
         print(f"Error in analysis: {e}")
@@ -237,10 +247,11 @@ def split_video_into_segments(input_video_path, segment_duration, output_dir="da
         print(f"Error splitting video: {e}")
         return []
 
-def main(video_source, tts_provider, config_path):
+def main(activity, video_source, tts_provider, config_path):
     """Main function to capture video and provide real-time coaching"""
     # Load configuration
     config = load_config(config_path)
+    config["activity"] = activity
 
     # Initialize video capture
     is_live_stream = video_source == "webcam"
@@ -256,7 +267,7 @@ def main(video_source, tts_provider, config_path):
         print(f"Error: Could not open video source: {source_name}")
         return
 
-    print(f"AI Coach started for {config["activity"]} using {source_name} with {tts_provider} TTS.")
+    print(f"AI Coach started for {activity} using {source_name} with {tts_provider} TTS.")
 
     analysis_interval = config.get('feedback_frequency')
     fps = config.get('fps')
@@ -349,6 +360,10 @@ if __name__ == "__main__":
     # Set up argument parser
     parser = argparse.ArgumentParser(description="Real-time AI Coach")
     parser.add_argument(
+        "--activity",
+        help="Activity to coach"
+    )
+    parser.add_argument(
         "--video-source",
         help="Video source: 'webcam' for camera input, or path to video file"
     )
@@ -364,4 +379,4 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    main(args.video_source, args.tts, args.config)
+    main(args.activity, args.video_source, args.tts, args.config)

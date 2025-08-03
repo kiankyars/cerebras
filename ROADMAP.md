@@ -1,12 +1,17 @@
 # Roadmap
 
 ## Technical Architecture
-### Frontend (Web App)
+### Frontend (Web App, IOS & Android by Friday August 8, 2025)
 - Next.js/React (web-first, mobile responsive)
 - getUserMedia() API for camera access
 - MediaRecorder API for video capture
 - WebSocket for real-time feedback
 - Web Audio API for TTS playback
+
+## UX
+- FaceTime-style with overlay feedback
+- Peloton-style Video-first interface
+- The name of the activiaty you are doing is overlayed on the video
 
 ### Backend (Python + FastAPI)
 - FastAPI REST API + WebSocket server
@@ -20,9 +25,6 @@
 - Supabase Storage for video files
 - Real-time subscriptions via WebSocket
 
-## UX
-- FaceTime-style with overlay feedback
-- Peloton-style Video-first interface
 
 ### Pricing Model
 - **Two modes:** live (premium) upload video (FREE)
@@ -47,6 +49,7 @@
 - Coaching style will be another hyperparameter, this is going to be so good, and bitter-lesson pilled
 - memory on the user
 - workouts with friends
+- help docs: first tip will be to leave the camera stationary
 
 ## Technical Notes
 - Gemini and Cerebras TTS are not working
