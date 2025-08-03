@@ -311,8 +311,8 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
     config = config_manager.load_config_by_path(session["config_path"])
     tts_provider = session["tts_provider"]
     
-    # Initialize TTS manager for live mode
-    tts_manager = TTSManager(provider=tts_provider, mode="live")
+            # TTS handled by frontend browser, no backend TTS needed
+        # tts_manager = TTSManager(provider=tts_provider, mode="live")
     
     # Create prompt
     fps = config.get('fps', 30)
@@ -375,13 +375,8 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
                             })
                             print(f"📤 Feedback sent via WebSocket")
                             
-                            # Play audio feedback only if not an error
-                            is_error = feedback_text.startswith("Error in") or "error" in feedback_text.lower()
-                            if not is_error:
-                                tts_manager.add_to_queue(feedback_text)
-                                print(f"🔊 Added to TTS queue")
-                            else:
-                                print(f"⚠️ Skipping TTS for error message")
+                            # Audio is handled by frontend browser TTS, not backend
+                            print(f"🔊 Audio will be played by frontend browser TTS")
                             
                             # Clean up
                             os.unlink(temp_video_path)
