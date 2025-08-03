@@ -183,32 +183,45 @@ export default function Home() {
     console.log('✅ MediaRecorder created');
     
     mediaRecorder.ondataavailable = async (event) => {
-      console.log('MediaRecorder data available:', event.data.size, 'bytes');
+      console.log('📊 MediaRecorder data available:');
+      console.log('  - Blob size:', event.data.size, 'bytes');
+      console.log('  - Blob type:', event.data.type);
+      console.log('  - Session ID:', sessionId);
+      
       if (event.data.size > 0 && sessionId) {
-        // Only process if we have substantial data (at least 1KB)
-        if (event.data.size < 1000) {
-          console.warn('Video chunk too small:', event.data.size, 'bytes - skipping');
-          return;
-        }
+        // Try to send ANY data for now to debug
+        console.log('🔍 Processing blob data...');
         
         // Convert blob to base64 and send via WebSocket
         const reader = new FileReader();
         reader.onload = () => {
           const base64 = reader.result as string;
-          const videoData = base64.split(',')[1]; // Remove data:video/webm;base64, prefix
-          console.log('Sending video data for analysis:');
-          console.log('- Original blob size:', event.data.size, 'bytes');
-          console.log('- Base64 size:', videoData.length, 'characters');
+          console.log('📝 FileReader result:');
+          console.log('  - Full base64 length:', base64.length);
+          console.log('  - Base64 prefix:', base64.substring(0, 50));
           
+          const videoData = base64.split(',')[1]; // Remove data:video/webm;base64, prefix
+          console.log('  - Video data length:', videoData ? videoData.length : 'null');
+          
+          if (!videoData || videoData.length < 10) {
+            console.error('❌ Video data too small or missing after base64 split');
+            return;
+          }
+          
+          console.log('📤 Sending video data for analysis');
           send({ 
             type: 'analyze', 
             videoData: videoData
           });
         };
-        reader.onerror = () => {
-          console.error('Failed to read video blob as base64');
+        reader.onerror = (error) => {
+          console.error('❌ Failed to read video blob as base64:', error);
         };
+        
+        console.log('🔄 Starting FileReader...');
         reader.readAsDataURL(event.data);
+      } else {
+        console.warn('⚠️ Skipping data - size:', event.data.size, 'sessionId:', sessionId);
       }
     };
     
@@ -216,12 +229,25 @@ export default function Home() {
       console.log('Recording stopped');
     };
     
-    // Start recording with 5-second segments for better data capture
-    console.log('🔴 Starting MediaRecorder with 5-second intervals');
+    // Test different recording strategies
+    console.log('🔴 Starting MediaRecorder...');
+    console.log('  - Stream tracks:', streamRef.current.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState })));
+    
     try {
-      mediaRecorder.start(5000);
+      // Try shorter intervals first to see if we get any data
+      console.log('📊 Starting with 2-second intervals for debugging');
+      mediaRecorder.start(2000);
       setIsRecording(true);
       console.log('✅ MediaRecorder started successfully');
+      
+      // Add a timeout to force data if nothing comes through
+      setTimeout(() => {
+        if (mediaRecorder.state === 'recording') {
+          console.log('⏰ Forcing MediaRecorder to generate data...');
+          mediaRecorder.requestData();
+        }
+      }, 3000);
+      
     } catch (error) {
       console.error('❌ Failed to start MediaRecorder:', error);
     }
