@@ -1,7 +1,7 @@
 [project]
 name = "ned"
 version = "0.1.0"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 description = "Real-time coaching with video capture and voice feedback"
 dependencies = [
     "opencv-python",
