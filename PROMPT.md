@@ -25,3 +25,9 @@ REQUIREMENTS:
 - Clean shutdown on 'q' key
 
 Create complete working backend with threading.
+Gemini and Cerebrus TTS are not working.
+COACH STYLE WILL BE ANOTHER HYPERPAREMTER, THIS IS GOING TO BE SO GOOD, AND BITTER-LESSON PILLED
+
+I'll have to learn to start dealing with these errors because they seem inevitable. {'code': 500, 'message': 'An internal error has occurred. Please retry or report in https://developers.generativeai.google/guide/troubleshooting', 'status': 'INTERNAL'}}
+
+rember that the guy used 1 fps, so I need to play with that

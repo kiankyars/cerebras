@@ -152,7 +152,7 @@ class TTSManager:
                 client = genai.Client(api_key=api_key)
 
                 response = client.models.generate_content(
-                    model="gemini-2.0-flash-exp",
+                    model="gemini-2.5-flash-preview-tts",
                     contents=text,
                     config=client.types.GenerateContentConfig(
                         response_modalities=["AUDIO"],
@@ -219,7 +219,7 @@ class TTSManager:
                 final_video = video
 
             # Write the final video
-            final_video.write_videofile(f"data/{output_path}", codec='libx264', audio_codec='aac')
+            final_video.write_videofile(output_path, codec='libx264', audio_codec='aac')
 
             # Clean up
             video.close()
