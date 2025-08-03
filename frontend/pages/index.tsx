@@ -177,16 +177,30 @@ export default function Home() {
     mediaRecorderRef.current = mediaRecorder;
     
     mediaRecorder.ondataavailable = async (event) => {
+      console.log('MediaRecorder data available:', event.data.size, 'bytes');
       if (event.data.size > 0 && sessionId) {
+        // Only process if we have substantial data (at least 1KB)
+        if (event.data.size < 1000) {
+          console.warn('Video chunk too small:', event.data.size, 'bytes - skipping');
+          return;
+        }
+        
         // Convert blob to base64 and send via WebSocket
         const reader = new FileReader();
         reader.onload = () => {
           const base64 = reader.result as string;
-          console.log('Sending video data for analysis, size:', event.data.size);
+          const videoData = base64.split(',')[1]; // Remove data:video/webm;base64, prefix
+          console.log('Sending video data for analysis:');
+          console.log('- Original blob size:', event.data.size, 'bytes');
+          console.log('- Base64 size:', videoData.length, 'characters');
+          
           send({ 
             type: 'analyze', 
-            videoData: base64.split(',')[1] // Remove data:video/webm;base64, prefix
+            videoData: videoData
           });
+        };
+        reader.onerror = () => {
+          console.error('Failed to read video blob as base64');
         };
         reader.readAsDataURL(event.data);
       }
@@ -196,8 +210,9 @@ export default function Home() {
       console.log('Recording stopped');
     };
     
-    // Start recording with 3-second segments
-    mediaRecorder.start(3000);
+    // Start recording with 5-second segments for better data capture
+    console.log('Starting MediaRecorder with 5-second intervals');
+    mediaRecorder.start(5000);
     setIsRecording(true);
   };
   
