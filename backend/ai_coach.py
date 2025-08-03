@@ -30,7 +30,7 @@ def load_config(config_path):
 
 def create_system_prompt(config, fps):
     activity = config["activity"]
-    coach = config.get("coach", "professional coach")  # Default fallback
+    coach = config.get("coach")  # Default fallback
 
     analysis_parts = []
 
@@ -237,11 +237,10 @@ def split_video_into_segments(input_video_path, segment_duration, output_dir="da
         print(f"Error splitting video: {e}")
         return []
 
-def main(activity, video_source, tts_provider, config_path):
+def main(video_source, tts_provider, config_path):
     """Main function to capture video and provide real-time coaching"""
     # Load configuration
     config = load_config(config_path)
-    config["activity"] = activity
 
     # Initialize video capture
     is_live_stream = video_source == "webcam"
@@ -257,7 +256,7 @@ def main(activity, video_source, tts_provider, config_path):
         print(f"Error: Could not open video source: {source_name}")
         return
 
-    print(f"AI Coach started for {activity} using {source_name} with {tts_provider} TTS.")
+    print(f"AI Coach started for {config["activity"]} using {source_name} with {tts_provider} TTS.")
 
     analysis_interval = config.get('feedback_frequency')
     fps = config.get('fps')
@@ -350,10 +349,6 @@ if __name__ == "__main__":
     # Set up argument parser
     parser = argparse.ArgumentParser(description="Real-time AI Coach")
     parser.add_argument(
-        "--activity",
-        help="Activity to coach"
-    )
-    parser.add_argument(
         "--video-source",
         help="Video source: 'webcam' for camera input, or path to video file"
     )
@@ -369,4 +364,4 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    main(args.activity, args.video_source, args.tts, args.config)
+    main(args.video_source, args.tts, args.config)
