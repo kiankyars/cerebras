@@ -384,8 +384,9 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
                             # Analyze the video segment
                             print(f"🤖 Starting Gemini analysis...")
                             feedback_json = analyze_video_with_gemini(temp_video_path, prompt_template, fps, config)
+                            print(f"💬 Full feedback JSON: {feedback_json}")
                             feedback_text = feedback_json.get("feedback", "No feedback available")
-                            print(f"💬 Analysis result: {feedback_text}")
+                            print(f"💬 Extracted feedback text: {feedback_text}")
                             
                             # Send feedback
                             current_time = asyncio.get_event_loop().time()
