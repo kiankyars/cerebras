@@ -28,7 +28,6 @@ def load_config(config_path):
 def create_system_prompt(config, fps):
     activity = config["activity"]
     
-    # Build analysis section dynamically based on available keys
     analysis_parts = []
     
     if "goal" in config:
@@ -61,24 +60,25 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, start_offse
         with open(video_file_path, 'rb') as f:
             video_bytes = f.read()
         
-        # Create base parts
+        # Create video metadata - always include FPS
+        video_metadata = types.VideoMetadata(fps=fps)
+        
+        # Add time offsets for upload videos
+        if start_offset is not None and end_offset is not None:
+            video_metadata.start_offset = f"{start_offset}s"
+            video_metadata.end_offset = f"{end_offset}s"
+        
+        # Create base parts with video metadata
         parts = [
             types.Part(
                 inline_data=types.Blob(
                     data=video_bytes,
                     mime_type='video/mp4'
-                )
+                ),
+                video_metadata=video_metadata
             ),
             types.Part(text=prompt_template)
         ]
-        
-        # Add video metadata with time offsets only for upload videos
-        if start_offset is not None and end_offset is not None:
-            parts[0].video_metadata = types.VideoMetadata(
-                fps=fps,
-                start_offset=f"{start_offset}s",
-                end_offset=f"{end_offset}s"
-            )
         
         # Generate content with video and metadata
         response = client.models.generate_content(
