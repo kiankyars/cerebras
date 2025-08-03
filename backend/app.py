@@ -375,9 +375,13 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
                             })
                             print(f"📤 Feedback sent via WebSocket")
                             
-                            # Play audio feedback
-                            tts_manager.add_to_queue(feedback_text)
-                            print(f"🔊 Added to TTS queue")
+                            # Play audio feedback only if not an error
+                            is_error = feedback_text.startswith("Error in") or "error" in feedback_text.lower()
+                            if not is_error:
+                                tts_manager.add_to_queue(feedback_text)
+                                print(f"🔊 Added to TTS queue")
+                            else:
+                                print(f"⚠️ Skipping TTS for error message")
                             
                             # Clean up
                             os.unlink(temp_video_path)
