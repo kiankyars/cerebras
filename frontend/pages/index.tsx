@@ -361,12 +361,12 @@ export default function Home() {
       sandwich: '🥪',
       sleep: '😴',
       hurdles: '🏃‍♀️',
-      paddle_ball: '🏓',
+      paddle_ball: '🎾',
       plyometrics: '💪'
     };
     console.log('Available icon keys:', Object.keys(icons));
     console.log('Icon found:', icons[activity]);
-    return icons[activity];
+    return icons[activity] || '📋';
   };
 
   const getVoiceIcon = (provider: string) => {
