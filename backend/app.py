@@ -180,7 +180,7 @@ async def process_upload_video(session_id: str, session: dict, config: dict):
         tts_manager = TTSManager(provider=tts_provider, mode="video")
         
         # Create prompt
-        fps = config.get('fps', 30)
+        fps = config.get('fps')
         prompt_template = create_system_prompt(config, fps)
         
         # Split video into segments
@@ -314,7 +314,7 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
     # Create prompt
     fps = config.get('fps', 30)
     prompt_template = create_system_prompt(config, fps)
-    analysis_interval = config.get('feedback_frequency', 3)  # Use config or default to 3 seconds
+    analysis_interval = config.get('feedback_frequency')  # Use config or default to 3 seconds
     
     try:
         # Send confirmation that session is ready
