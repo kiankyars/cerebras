@@ -448,13 +448,13 @@ export default function Home() {
         </div>
 
         {/* Activity Selection */}
-        <div className="mb-8">
-          <label className="block text-base font-medium text-blue-200 mb-4">
+        <div className="mb-4">
+          <label className="block text-base font-medium text-blue-200 mb-3">
             Select Category:
           </label>
           <button
             onClick={() => setShowCategoryModal(true)}
-            className="w-full bg-blue-800/50 border border-blue-600/50 rounded-lg p-5 flex items-center justify-between text-left hover:bg-blue-700/50 transition-colors"
+            className="w-full bg-blue-800/50 border border-blue-600/50 rounded-lg p-4 flex items-center justify-between text-left hover:bg-blue-700/50 transition-colors"
           >
             <div className="flex items-center space-x-4">
               <span className="text-2xl">{getCategoryIcon(selectedCategory)}</span>
@@ -467,13 +467,13 @@ export default function Home() {
         </div>
 
         {selectedCategory && (
-          <div className="mb-8">
-            <label className="block text-base font-medium text-blue-200 mb-4">
+          <div className="mb-4">
+            <label className="block text-base font-medium text-blue-200 mb-3">
               Select Activity:
             </label>
             <button
               onClick={() => setShowActivityModal(true)}
-              className="w-full bg-blue-800/50 border border-blue-600/50 rounded-lg p-5 flex items-center justify-between text-left hover:bg-blue-700/50 transition-colors"
+              className="w-full bg-blue-800/50 border border-blue-600/50 rounded-lg p-4 flex items-center justify-between text-left hover:bg-blue-700/50 transition-colors"
             >
               <div className="flex items-center space-x-4">
                 <span className="text-2xl">{getActivityIcon(selectedConfig)}</span>
@@ -487,13 +487,13 @@ export default function Home() {
         )}
 
         {/* Voice Style Selection */}
-        <div className="mb-8">
-          <label className="block text-base font-medium text-blue-200 mb-4">
+        <div className="mb-4">
+          <label className="block text-base font-medium text-blue-200 mb-3">
             Voice Style:
           </label>
           <button
             onClick={() => setShowVoiceModal(true)}
-            className="w-full bg-blue-800/50 border border-blue-600/50 rounded-lg p-5 flex items-center justify-between text-left hover:bg-blue-700/50 transition-colors"
+            className="w-full bg-blue-800/50 border border-blue-600/50 rounded-lg p-4 flex items-center justify-between text-left hover:bg-blue-700/50 transition-colors"
           >
             <div className="flex items-center space-x-4">
               <span className="text-2xl">{getVoiceIcon(selectedTTSProvider)}</span>

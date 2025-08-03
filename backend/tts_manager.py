@@ -78,22 +78,26 @@ class GeminiTTS(TTSProvider):
 class ChatGPTTTS(TTSProvider):
     """ChatGPT TTS implementation"""
 
-    def __init__(self):
+    def __init__(self, voice_style: str = "cheerful"):
         from openai import OpenAI
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("OPENAI_API_KEY not found in environment variables")
         self.client = OpenAI(api_key=api_key)
+        self.voice_style = voice_style
 
     def speak_text(self, text: str) -> bool:
         try:
             speech_file_path = Path(__file__).parent / "temp_speech.mp3"
 
+            # Create voice instructions based on style
+            voice_instructions = self._get_voice_instructions()
+
             with self.client.audio.speech.with_streaming_response.create(
                 model="gpt-4o-mini-tts",
                 voice="coral",
                 input=text,
-                instructions="Speak in a cheerful and positive tone.",
+                instructions=voice_instructions,
             ) as response:
                 response.stream_to_file(speech_file_path)
 
@@ -108,12 +112,24 @@ class ChatGPTTTS(TTSProvider):
             print(f"Error generating or playing speech with ChatGPT: {e}")
             return False
 
+    def _get_voice_instructions(self) -> str:
+        """Get voice instructions based on selected style"""
+        instructions = {
+            "cheerful": "Speak in a cheerful and positive tone with enthusiasm.",
+            "encouraging": "Speak in an encouraging and motivational tone.",
+            "professional": "Speak in a professional and authoritative coaching tone.",
+            "friendly": "Speak in a friendly and approachable tone.",
+            "energetic": "Speak with high energy and excitement."
+        }
+        return instructions.get(self.voice_style, "Speak in a cheerful and positive tone.")
+
 class TTSManager:
     """Manages TTS providers and audio queue"""
 
-    def __init__(self, provider: str = "gemini", mode: str = "live"):
+    def __init__(self, provider: str = "gemini", mode: str = "live", voice_style: str = "cheerful"):
         self.provider_name = provider
         self.mode = mode  # "live" or "video"
+        self.voice_style = voice_style
         self.audio_queue = []
         self.audio_lock = threading.Lock()
         self.stop_event = threading.Event()
@@ -125,7 +141,7 @@ class TTSManager:
         if provider == "gemini":
             self.tts_provider = GeminiTTS()
         elif provider == "chatgpt":
-            self.tts_provider = ChatGPTTTS()
+            self.tts_provider = ChatGPTTTS(voice_style=voice_style)
         else:
             raise ValueError(f"Unknown TTS provider: {provider}")
 
