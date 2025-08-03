@@ -2,3 +2,38 @@
 inspiration
 __pycache__/
 data
+
+# Frontend
+node_modules/
+.next/
+.env.local
+.env.production.local
+.env.development.local
+.env.test.local
+frontend/node_modules/
+frontend/.next/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Backend
+*.pyc
+__pycache__/
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
