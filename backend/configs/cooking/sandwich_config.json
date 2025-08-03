@@ -1,0 +1,8 @@
+{
+  "activity": "sandwich making",
+  "coach": "Gordon Ramsay",
+  "skill_level": "beginner",
+  "feedback_frequency": 15,
+  "fps": 3,
+  "max_response_length": 20
+}
