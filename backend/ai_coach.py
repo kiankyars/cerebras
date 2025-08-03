@@ -47,19 +47,33 @@ def create_system_prompt(config, fps):
     base_prompt = f"""You are a real-time {activity} coach. Help me like you're Michael Jordan. FPS is {fps}.
 FEEDBACK:
 {analysis_section}
-- ALWAYS under {config.get('max_response_length', 10)} words
 - ALWAYS be direct
-- NO timestamps"""
+- NO timestamps
+- Response length: MAX {config.get('max_response_length', 10)} words STRICTLY ENFORCED
+"""
     print(base_prompt)
     # quit()
     return base_prompt
 
 def analyze_video_with_gemini(video_file_path, prompt_template, fps):
-    """Send video file to Gemini API for analysis"""
+    """Send video file to Gemini API for analysis, returns JSON format"""
     try:
         # Read video file as bytes
         with open(video_file_path, 'rb') as f:
             video_bytes = f.read()
+        
+        # Define JSON schema for feedback response
+        feedback_schema = types.Schema(
+            type="OBJECT",
+            properties={
+                "feedback": types.Schema(
+                    type="STRING",
+                    description="Coaching feedback for the activity"
+                )
+            },
+            required=["feedback"]
+        )
+        
         # Create parts with video and prompt
         parts = [
             types.Part(
@@ -69,19 +83,29 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps):
                 ),
                 video_metadata=types.VideoMetadata(fps=fps)
             ),
-            types.Part(text=prompt_template)
+            types.Part(text=f"{prompt_template}\n\nProvide your response in JSON format with a 'feedback' field containing your coaching advice.")
         ]
-
-        # Generate content with video and metadata
+        
+        # Generate content with video, metadata, and JSON response format
         response = client.models.generate_content(
             model="gemini-2.5-pro",
-            contents=types.Content(parts=parts)
+            contents=types.Content(parts=parts),
+            config=types.GenerateContentConfig(
+                response_mime_type='application/json',
+                response_schema=feedback_schema
+            )
         )
 
-        return response.candidates[0].content.parts[0].text if response.candidates else "No feedback available"
+        if response.candidates:
+            # Parse JSON response
+            feedback_json = json.loads(response.candidates[0].content.parts[0].text)
+            return feedback_json
+        else:
+            return {"feedback": "No feedback available"}
+            
     except Exception as e:
-        print(e)
-        return "Error in analysis"
+        print(f"Error in analysis: {e}")
+        return {"feedback": "Error in analysis"}
 
 def capture_live_segment(cap, duration_seconds):
     """Capture live video segment to temporary file and return path"""
@@ -238,11 +262,12 @@ def main(activity, video_source, tts_provider, config_path):
 
                 if temp_video_path:
                     print("Analyzing live segment...")
-                    feedback = analyze_video_with_gemini(temp_video_path, prompt_template, fps)
-                    print(f"Analysis result: {feedback}")
+                    feedback_json = analyze_video_with_gemini(temp_video_path, prompt_template, fps)
+                    feedback_text = feedback_json.get("feedback", "No feedback available")
+                    print(f"Analysis result: {feedback_json}")
 
                     # Real-time audio feedback
-                    tts_manager.add_to_queue(feedback)
+                    tts_manager.add_to_queue(feedback_text)
 
                     # Clean up temp file
                     os.unlink(temp_video_path)
@@ -268,11 +293,12 @@ def main(activity, video_source, tts_provider, config_path):
             for segment_file, start_time, duration in segment_files:
                 print(f"Analyzing segment: {start_time}s-{start_time + duration}s")
                 
-                feedback = analyze_video_with_gemini(segment_file, prompt_template, fps)
-                print(f"Analysis result: {feedback}")
+                feedback_json = analyze_video_with_gemini(segment_file, prompt_template, fps)
+                feedback_text = feedback_json.get("feedback", "No feedback available")
+                print(f"Analysis result: {feedback_json}")
 
                 # Add feedback to TTS manager with proper timing
-                tts_manager.add_to_queue(feedback, start_time, duration)
+                tts_manager.add_to_queue(feedback_text, start_time, duration)
 
             # Clean up segment files
             for segment_file, _, _ in segment_files:
