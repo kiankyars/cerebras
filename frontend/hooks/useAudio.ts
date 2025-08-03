@@ -6,6 +6,8 @@ export const useAudio = () => {
   const isPlayingRef = useRef(false);
 
   const initializeAudio = useCallback(async () => {
+    if (typeof window === 'undefined') return;
+    
     if (!audioContextRef.current) {
       try {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -21,7 +23,7 @@ export const useAudio = () => {
   }, []);
 
   const playTextToSpeech = useCallback(async (text: string) => {
-    if (!text || !('speechSynthesis' in window)) {
+    if (typeof window === 'undefined' || !text || !('speechSynthesis' in window)) {
       console.warn('Speech synthesis not supported');
       return;
     }
@@ -76,7 +78,7 @@ export const useAudio = () => {
   }, []);
 
   const stopAudio = useCallback(() => {
-    if ('speechSynthesis' in window) {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       speechSynthesis.cancel();
     }
     audioQueueRef.current = [];
@@ -87,6 +89,6 @@ export const useAudio = () => {
     initializeAudio,
     playTextToSpeech,
     stopAudio,
-    isAudioSupported: 'speechSynthesis' in window,
+    isAudioSupported: typeof window !== 'undefined' && 'speechSynthesis' in window,
   };
 };
