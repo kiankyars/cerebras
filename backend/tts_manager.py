@@ -57,7 +57,12 @@ class GeminiTTS(TTSProvider):
             self._save_wave_file(temp_file, audio_data)
 
             # Play the audio file
-            os.system(f"afplay {temp_file}")  # macOS command to play audio
+            if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("PORT"):
+                # Production - don't play audio
+                print(f"Generated TTS audio: {temp_file}")
+            else:
+                # Development - play audio
+                os.system(f"afplay {temp_file}")
 
             # Clean up temporary file
             os.remove(temp_file)
@@ -102,7 +107,12 @@ class ChatGPTTTS(TTSProvider):
                 response.stream_to_file(speech_file_path)
 
             # Play the audio file
-            os.system(f"afplay {speech_file_path}")  # macOS command to play audio
+            if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("PORT"):
+                # Production - don't play audio
+                print(f"Generated TTS audio: {speech_file_path}")
+            else:
+                # Development - play audio
+                os.system(f"afplay {speech_file_path}")
 
             # Clean up temporary file
             speech_file_path.unlink(missing_ok=True)
