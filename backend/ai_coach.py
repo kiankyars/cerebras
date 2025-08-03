@@ -6,6 +6,7 @@ import tempfile
 from pathlib import Path
 
 import cv2
+import requests
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
@@ -104,7 +105,7 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
         # Generate content with video, metadata, and JSON response format
         # Use low media resolution for token efficiency (66 vs 258 tokens per frame)
         response = client.models.generate_content(
-            model="gemini-2.5-pro",
+            model="gemini-2.5-flash",
             contents=types.Content(parts=parts),
             config=types.GenerateContentConfig(
                 response_mime_type='application/json',

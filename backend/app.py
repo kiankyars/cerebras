@@ -387,10 +387,12 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
                             print(f"❌ Error processing video: {e}")
                             import traceback
                             print(f"❌ Full error traceback: {traceback.format_exc()}")
+                            # Send error to frontend but DON'T add to TTS queue
                             await websocket.send_json({
                                 "type": "error", 
                                 "message": f"Error processing video: {str(e)}"
                             })
+                            # Skip TTS for errors
                     else:
                         print(f"⚠️ No video data in analyze message")
                         await websocket.send_json({
