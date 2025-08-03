@@ -4,7 +4,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "uvicorn app:app --host 0.0.0.0 --port $PORT",
+    "startCommand": "cd backend && uvicorn app:app --host 0.0.0.0 --port $PORT",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
@@ -13,4 +13,4 @@
   "variables": {
     "NIXPACKS_NIXPKGS": "libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libxrender-dev libgomp1"
   }
-}
+} 
