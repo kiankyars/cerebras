@@ -1,6 +1,6 @@
 # NED
 
-This is the frontend for the FR8 AI Coach application, built with Next.js and React.
+This is the frontend for NED, built with Next.js and React.
 
 ## Features
 

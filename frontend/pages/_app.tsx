@@ -7,8 +7,8 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <>
       <Head>
-        <title>NED AI Coach</title>
-        <meta name="description" content="Real-time AI coaching for sports and more" />
+        <title>NED</title>
+        <meta name="description" content="Real-time coaching for sports and more" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>

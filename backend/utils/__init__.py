@@ -1,1 +1,1 @@
-# Utils package for NED AI Coach backend
+# Utils package for NED backend

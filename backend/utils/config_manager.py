@@ -1,4 +1,4 @@
-"""Configuration management utilities for NED AI Coach"""
+"""Configuration management utilities for NED"""
 import json
 import os
 from pathlib import Path

@@ -1,7 +1,7 @@
 [project]
 name = "ned"
 version = "0.1.0"
-description = "Real-time AI coaching with video capture and voice feedback"
+description = "Real-time coaching with video capture and voice feedback"
 dependencies = [
     "opencv-python",
     "google-generativeai",

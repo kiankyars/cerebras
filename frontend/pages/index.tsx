@@ -133,7 +133,7 @@ export default function Home() {
         }
       });
       
-      setFeedback('Connected to AI coach. Starting analysis...');
+              setFeedback('Connected to NED. Starting analysis...');
       
       // Start camera
       await startCamera();
@@ -288,13 +288,13 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-100">
       <Head>
-        <title>NED AI Coach</title>
-        <meta name="description" content="Real-time AI coaching for sports and more" />
+        <title>NED</title>
+        <meta name="description" content="Real-time coaching for sports and more" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
       
       <main className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-center mb-8">NED AI Coach</h1>
+        <h1 className="text-3xl font-bold text-center mb-8">NED</h1>
         
         {/* Error Display */}
         {error && (

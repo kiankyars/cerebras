@@ -19,7 +19,7 @@ from ai_coach import analyze_video_with_gemini, capture_live_segment, create_sys
 from tts_manager import TTSManager
 from utils.config_manager import ConfigManager
 
-app = FastAPI(title="NED AI Coach API", version="0.1.0")
+app = FastAPI(title="NED API", version="0.1.0")
 
 # CORS middleware for web frontend
 app.add_middleware(
@@ -54,7 +54,7 @@ manager = ConnectionManager()
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "message": "NED AI Coach API is running"}
+    return {"status": "healthy", "message": "NED API is running"}
 
 @app.get("/configs")
 async def list_configs():

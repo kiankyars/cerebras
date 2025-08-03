@@ -1,4 +1,4 @@
-You are building a real-time AI coaching backend. Create a Python application that:
+You are building a real-time coaching backend. Create a Python application that:
 
 INPUT: Video stream (webcam) at 1fps
 OUTPUT: Voice feedback via text-to-speech

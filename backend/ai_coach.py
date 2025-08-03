@@ -268,7 +268,7 @@ def main(activity, video_source, tts_provider, config_path):
         print(f"Error: Could not open video source: {source_name}")
         return
 
-    print(f"AI Coach started for {activity} using {source_name} with {tts_provider} TTS.")
+    print(f"NED started for {activity} using {source_name} with {tts_provider} TTS.")
 
     analysis_interval = config.get('feedback_frequency')
     fps = config.get('fps')
@@ -354,16 +354,12 @@ def main(activity, video_source, tts_provider, config_path):
         cap.release()
         cv2.destroyAllWindows()
 
-    print("AI Coach stopped.")
+    print("NED stopped.")
 
 
 if __name__ == "__main__":
     # Set up argument parser
-    parser = argparse.ArgumentParser(description="Real-time AI Coach")
-    parser.add_argument(
-        "--activity",
-        help="Activity to coach"
-    )
+    parser = argparse.ArgumentParser(description="Real-time coaching with NED")
     parser.add_argument(
         "--video-source",
         help="Video source: 'webcam' for camera input, or path to video file"

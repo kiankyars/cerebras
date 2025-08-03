@@ -1,6 +1,6 @@
 # NED
 
-Real-time AI coaching for sports, fitness, music, and more using computer vision and voice feedback.
+Real-time coaching for sports, fitness, music, and more using computer vision and voice feedback.
 
 ## 🚀 Quick Start
 

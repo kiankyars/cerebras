@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-FastAPI server startup script for NED AI Coach
+FastAPI server startup script for NED
 """
 import uvicorn
 
