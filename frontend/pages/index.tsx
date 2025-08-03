@@ -134,7 +134,7 @@ export default function Home() {
         }
       });
       
-              setFeedback('Connected to NED. Starting analysis...');
+      setFeedback('Connected to NED. Starting analysis...');
       
       // Start camera
       await startCamera();
@@ -147,6 +147,9 @@ export default function Home() {
       timeIntervalRef.current = setInterval(() => {
         setTimeElapsed(prev => prev + 1);
       }, 1000);
+      
+      // Return session data for immediate use
+      return data;
     } catch (error) {
       console.error('Error starting live session:', error);
       setError('Failed to start live session. Please try again.');
@@ -170,7 +173,7 @@ export default function Home() {
     setError('');
   };
   
-  const startRecording = () => {
+  const startRecording = (currentSessionId?: string) => {
     console.log('🎬 startRecording called');
     if (!streamRef.current) {
       console.error('❌ No stream available for recording');
@@ -208,7 +211,8 @@ export default function Home() {
       console.log('  - Blob type:', event.data.type);
       console.log('  - Session ID:', sessionId);
       
-      if (event.data.size > 0 && sessionId) {
+      const activeSessionId = currentSessionId || sessionId;
+      if (event.data.size > 0 && activeSessionId) {
         // Try to send ANY data for now to debug
         console.log('🔍 Processing blob data...');
         
@@ -245,7 +249,7 @@ export default function Home() {
         console.log('🔄 Starting FileReader...');
         reader.readAsDataURL(event.data);
       } else {
-        console.warn('⚠️ Skipping data - size:', event.data.size, 'sessionId:', sessionId);
+        console.warn('⚠️ Skipping data - size:', event.data.size, 'sessionId:', activeSessionId);
       }
     };
     
@@ -286,8 +290,11 @@ export default function Home() {
   
   const handleStart = async () => {
     if (mode === 'live') {
-      await startLiveSession();
-      startRecording();
+      const sessionData = await startLiveSession();
+      if (sessionData) {
+        console.log('🎬 Starting recording with session ID:', sessionData.session_id);
+        startRecording(sessionData.session_id);
+      }
     }
   };
   
