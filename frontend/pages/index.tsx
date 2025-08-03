@@ -451,8 +451,8 @@ export default function Home() {
             value={selectedTTSProvider}
             onChange={(e) => setSelectedTTSProvider(e.target.value)}
           >
-            <option value="gemini">Gemini TTS (Natural voice)</option>
             <option value="chatgpt">ChatGPT TTS (Clear voice)</option>
+            <option value="gemini">Gemini TTS (Natural voice)</option>
           </select>
         </div>
         
