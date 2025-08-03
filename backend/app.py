@@ -38,18 +38,35 @@ config_manager = ConfigManager("configs")
 class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
+        self.session_last_analysis: Dict[str, float] = {}  # Track last analysis time per session
 
     async def connect(self, websocket: WebSocket, session_id: str):
         await websocket.accept()
         self.active_connections[session_id] = websocket
+        self.session_last_analysis[session_id] = 0  # Initialize last analysis time
 
     def disconnect(self, session_id: str):
         if session_id in self.active_connections:
             del self.active_connections[session_id]
+        if session_id in self.session_last_analysis:
+            del self.session_last_analysis[session_id]
 
     async def send_feedback(self, session_id: str, message: dict):
         if session_id in self.active_connections:
             await self.active_connections[session_id].send_json(message)
+    
+    def can_analyze(self, session_id: str, min_interval: float) -> bool:
+        """Check if session can perform analysis based on rate limiting"""
+        if session_id not in self.session_last_analysis:
+            return True
+        
+        current_time = asyncio.get_event_loop().time()
+        time_since_last = current_time - self.session_last_analysis[session_id]
+        return time_since_last >= min_interval
+    
+    def update_analysis_time(self, session_id: str):
+        """Update the last analysis time for a session"""
+        self.session_last_analysis[session_id] = asyncio.get_event_loop().time()
 
 manager = ConnectionManager()
 
@@ -314,18 +331,14 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
     # Create prompt
     fps = config.get('fps', 30)
     prompt_template = create_system_prompt(config, fps)
-    analysis_interval = config.get('feedback_frequency', 3)  # Default to 3 seconds
-    
-    print(f"🎯 Live session configured with {analysis_interval}s analysis interval")
+    feedback_frequency = config.get('feedback_frequency', 3)  # seconds
     
     try:
         # Send confirmation that session is ready
         await websocket.send_json({
             "type": "ready", 
-            "message": f"Live session ready for video analysis (interval: {analysis_interval}s)"
+            "message": "Live session ready for video analysis"
         })
-        
-        last_analysis_time = 0
         
         while True:
             # Wait for client to send video data or commands
@@ -336,21 +349,22 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
                 
                 if message.get("type") == "analyze":
                     print(f"🔍 Received analyze message for session {session_id}")
+                    
+                    # Check rate limiting using manager
+                    if not manager.can_analyze(session_id, feedback_frequency):
+                        current_time = asyncio.get_event_loop().time()
+                        last_time = manager.session_last_analysis.get(session_id, 0)
+                        wait_time = feedback_frequency - (current_time - last_time)
+                        print(f"⏱️ Rate limited - waiting {wait_time:.1f}s (min interval: {feedback_frequency}s)")
+                        await websocket.send_json({
+                            "type": "rate_limited",
+                            "message": f"Rate limited. Wait {wait_time:.1f}s",
+                            "wait_time": wait_time
+                        })
+                        continue
+                    
                     video_data = message.get("videoData")
                     if video_data:
-                        current_time = asyncio.get_event_loop().time()
-                        
-                        # Check if enough time has passed since last analysis
-                        if current_time - last_analysis_time < analysis_interval:
-                            time_remaining = analysis_interval - (current_time - last_analysis_time)
-                            print(f"⏰ Skipping analysis - {time_remaining:.1f}s remaining until next interval")
-                            await websocket.send_json({
-                                "type": "skipped",
-                                "message": f"Analysis skipped - {time_remaining:.1f}s until next interval",
-                                "time_remaining": time_remaining
-                            })
-                            continue
-                        
                         print(f"📹 Video data received, size: {len(video_data)} characters")
                         # Save video data to temporary file
                         import base64
@@ -364,21 +378,21 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
                                 f.write(base64.b64decode(video_data))
                             print(f"✅ Video file saved successfully")
                             
+                            # Update analysis time in manager
+                            manager.update_analysis_time(session_id)
+                            
                             # Analyze the video segment
                             print(f"🤖 Starting Gemini analysis...")
                             feedback_json = analyze_video_with_gemini(temp_video_path, prompt_template, fps, config)
                             feedback_text = feedback_json.get("feedback", "No feedback available")
                             print(f"💬 Analysis result: {feedback_text}")
                             
-                            # Update last analysis time
-                            last_analysis_time = current_time
-                            
                             # Send feedback
+                            current_time = asyncio.get_event_loop().time()
                             await websocket.send_json({
                                 "type": "feedback",
                                 "text": feedback_text,
-                                "timestamp": current_time,
-                                "next_analysis_in": analysis_interval
+                                "timestamp": current_time
                             })
                             print(f"📤 Feedback sent via WebSocket")
                             
