@@ -126,19 +126,19 @@ def capture_live_segment(cap, duration_seconds):
         
         if frames_captured == 0:
             os.unlink(temp_path)
-            return None, actual_fps
+            return None
             
-        return temp_path, actual_fps
+        return temp_path
         
     except Exception as e:
         print(f"Error capturing live segment: {e}")
-        return None, 30
+        return None
 
 def main(activity, video_source, tts_provider, config_path):
     """Main function to capture video and provide real-time coaching"""
     # Load configuration
     config = load_config(config_path)
-    config["activity"] = activity  # Override with command line argument
+    config["activity"] = activity
     
     # Initialize TTS manager
     tts_manager = TTSManager(provider=tts_provider)
@@ -157,27 +157,13 @@ def main(activity, video_source, tts_provider, config_path):
         print(f"Error: Could not open video source: {source_name}")
         return
     
-    # Get actual FPS from video source
-    source_fps = cap.get(cv2.CAP_PROP_FPS)
-    if source_fps <= 0:
-        source_fps = 30  # Fallback for webcams that don't report FPS
-    
     print(f"AI Coach started for {activity} using {source_name} with {tts_provider} TTS.")
-    print(f"Video FPS: {source_fps}")
     
-    # Display config info (only if keys exist)
-    if "goal" in config:
-        print(f"Goal: {config['goal']}")
-    if "focus_on" in config:
-        print(f"Focus: {config['focus_on']}")
-    if "skill_level" in config:
-        print(f"Skill level: {config['skill_level']}")
-    
-    analysis_interval = config.get('feedback_frequency')  # seconds
-    print(f"Analyzing video every {analysis_interval} seconds...")
+    analysis_interval = config.get('feedback_frequency')
+    fps = config.get('fps')
     
     # Create system prompt from config with actual fps
-    prompt_template = create_system_prompt(config, source_fps)
+    prompt_template = create_system_prompt(config, fps)
     
     try:
         if is_live_stream:
@@ -185,21 +171,13 @@ def main(activity, video_source, tts_provider, config_path):
             print("Starting live streaming analysis...")
             
             while True:
-                # Display live feed
-                ret, frame = cap.read()
-                if not ret:
-                    print("Error: Could not read frame")
-                    break
-                
-                cv2.imshow(f'AI Coach - {activity}', frame)
-                
                 # Capture and analyze segment
                 print("Capturing live segment...")
-                temp_video_path, actual_fps = capture_live_segment(cap, analysis_interval)
+                temp_video_path = capture_live_segment(cap, analysis_interval)
                 
                 if temp_video_path:
                     print("Analyzing live segment...")
-                    feedback = analyze_video_with_gemini(temp_video_path, prompt_template, actual_fps)
+                    feedback = analyze_video_with_gemini(temp_video_path, prompt_template, fps)
                     print(f"Analysis result: {feedback}")
                     
                     # Real-time audio feedback
@@ -215,10 +193,13 @@ def main(activity, video_source, tts_provider, config_path):
                     break
                     
         else:
-            # UPLOAD VIDEO WORKFLOW
+            # UPLOAD VIDEO WORKFLOW - Simple frame-based partitioning
             print("Starting upload video analysis...")
-            video_start_time = time.time()
-            last_analysis_time = -analysis_interval
+            
+            # Calculate frames per segment
+            frames_per_segment = int(fps * analysis_interval)
+            segment_number = 0
+            frame_count = 0
             
             while True:
                 ret, frame = cap.read()
@@ -226,28 +207,22 @@ def main(activity, video_source, tts_provider, config_path):
                     print("End of video reached")
                     break
                 
-                current_time = time.time()
-                current_video_time = current_time - video_start_time
+                frame_count += 1
                 
-                # Analyze using time offsets
-                if current_time - last_analysis_time >= analysis_interval:
-                    if current_video_time >= analysis_interval:
-                        print("Analyzing video segment...")
-                        
-                        end_offset = int(current_video_time)
-                        start_offset = end_offset - analysis_interval
-                        
-                        print(f"DEBUG: Video time: {current_video_time:.1f}s, Analyzing {start_offset}s to {end_offset}s")
-                        
-                        feedback = analyze_video_with_gemini(video_source, prompt_template, source_fps, start_offset, end_offset)
-                        print(f"Analysis result: {feedback}")
-                        
-                        tts_manager.add_to_queue(feedback)
-                        last_analysis_time = current_time
-                    else:
-                        print(f"DEBUG: Waiting for more video time. Current: {current_video_time:.1f}s, Need: {analysis_interval}s")
+                # Process segment when we reach the frame threshold
+                if frame_count % frames_per_segment == 0:
+                    segment_number += 1
+                    start_time = (segment_number - 1) * analysis_interval
+                    end_time = segment_number * analysis_interval
+                    
+                    print(f"Analyzing segment {segment_number}: {start_time}s to {end_time}s")
+                    
+                    feedback = analyze_video_with_gemini(video_source, prompt_template, fps, start_time, end_time)
+                    print(f"Analysis result: {feedback}")
+                    
+                    tts_manager.add_to_queue(feedback)
                 
-                # Display frame
+                # Single display location
                 cv2.imshow(f'AI Coach - {activity}', frame)
                 
                 # Check for exit
