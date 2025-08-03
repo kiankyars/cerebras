@@ -71,7 +71,11 @@ def analyze_video_with_gemini(video_source, prompt_template, fps, start_offset, 
                             data=video_bytes,
                             mime_type='video/mp4'
                         ),
-                        video_metadata=types.VideoMetadata(fps=fps)
+                        video_metadata=types.VideoMetadata(
+                            fps=fps,
+                            start_offset=f"{start_offset}s",
+                            end_offset=f"{end_offset}s"
+                        )
                     ),
                     types.Part(text=prompt_template)
                 ]
@@ -104,7 +108,7 @@ def main(activity, video_source, tts_provider, config_path):
         print(f"Error: Could not open video source: {source_name}")
         return
     
-    print(f"AI Coach started for {activity} using {source_name} with {tts_provider} TTS. Press 'q' to quit.")
+    print(f"AI Coach started for {activity} using {source_name} with {tts_provider} TTS.")
     
     # Display config info (only if keys exist)
     if "goal" in config:
@@ -120,6 +124,7 @@ def main(activity, video_source, tts_provider, config_path):
     analysis_interval = config.get('feedback_frequency')  # seconds
     last_analysis_time = -analysis_interval
     target_fps = 10
+    video_start_time = time.time()  # Track when video started
     
     # Create system prompt from config with fps
     prompt_template = create_system_prompt(config, target_fps)
@@ -137,27 +142,31 @@ def main(activity, video_source, tts_provider, config_path):
             
             # Analyze every interval
             if current_time - last_analysis_time >= analysis_interval:
-                print(f"Analyzing video segment...")
+                # Calculate video time offsets (not Unix timestamps!)
+                current_video_time = current_time - video_start_time  # Elapsed video time
                 
-                # Calculate time offsets for the last interval
-                end_offset = int(current_time)
-                start_offset = end_offset - analysis_interval
-                
-                # Analyze video with Gemini using time offsets
-                feedback = analyze_video_with_gemini(video_source, prompt_template, target_fps, start_offset, end_offset)
-                print(f"Analysis result: {feedback}")
-                
-                # Add feedback to audio queue
-                tts_manager.add_to_queue(feedback)
-                
-                last_analysis_time = current_time
+                # Only analyze if we have enough video time accumulated
+                if current_video_time >= analysis_interval:
+                    print(f"Analyzing video segment...")
+                    
+                    end_offset = int(current_video_time)
+                    start_offset = end_offset - analysis_interval  # Now guaranteed to be >= 0
+                    
+                    print(f"DEBUG: Video time: {current_video_time:.1f}s, Analyzing {start_offset}s to {end_offset}s")
+                    
+                    # Analyze video with Gemini using time offsets
+                    feedback = analyze_video_with_gemini(video_source, prompt_template, target_fps, start_offset, end_offset)
+                    print(f"Analysis result: {feedback}")
+                    
+                    # Add feedback to audio queue
+                    tts_manager.add_to_queue(feedback)
+                    
+                    last_analysis_time = current_time
+                else:
+                    print(f"DEBUG: Waiting for more video time. Current: {current_video_time:.1f}s, Need: {analysis_interval}s")
             
             # Display frame (optional, for debugging)
             cv2.imshow(f'AI Coach - {activity}', frame)
-            
-            # Check for quit key
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
                 
     except KeyboardInterrupt:
         print("Interrupted by user")
