@@ -57,134 +57,6 @@ FEEDBACK:
     return base_prompt
 
 def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
-    """Send video file to Gemini API for analysis, returns JSON format"""
-    # Check for OpenRouter configuration
-    provider = config.get('provider', False)
-    
-    if provider == "openrouter":
-        return analyze_video_with_openrouter(video_file_path, prompt_template, fps, config)
-    else:
-        return analyze_video_with_gemini(video_file_path, prompt_template, fps, config)
-
-def analyze_video_with_openrouter(video_file_path, prompt_template, fps, config):
-    """Analyze video using Gemini 2.5 Pro via OpenRouter with identical hyperparameters"""
-    try:
-        openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
-        if not openrouter_api_key:
-            raise ValueError("OPENROUTER_API_KEY not found in environment variables")
-        
-        print(f"🌐 Using OpenRouter for Gemini 2.5 Pro analysis...")
-        
-        # Read video file as base64
-        import base64
-        with open(video_file_path, 'rb') as f:
-            video_bytes = f.read()
-        video_base64 = base64.b64encode(video_bytes).decode('utf-8')
-        
-        # Get max response length (identical to direct Gemini)
-        max_response_words = config.get('max_response_length', 10)
-        max_output_tokens = max(1000, max_response_words * 20)
-        
-        print(f"🚀 Calling OpenRouter Gemini 2.5 Pro with {len(video_bytes)} bytes video...")
-        print(f"📝 Prompt text ({len(prompt_template)} chars):")
-        print(f"📝 {prompt_template}")
-        print(f"🎯 Max output tokens: {max_output_tokens}")
-        print(f"📹 Video FPS: {fps}")
-        
-        # OpenRouter API call with identical hyperparameters to direct Gemini
-        response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {openrouter_api_key}",
-                "Content-Type": "application/json",
-                "X-Title": "NED AI Coach"
-            },
-            json={
-                "model": "google/gemini-2.5-pro",
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": f"{prompt_template}\n\nAnalyze this video and provide direct JSON feedback in format: {{\"feedback\": \"your response\"}}"
-                            },
-                            {
-                                "type": "video",
-                                "video": {
-                                    "data": video_base64,
-                                    "format": "webm",
-                                    "fps": fps  # Add FPS metadata (identical to direct Gemini)
-                                }
-                            }
-                        ]
-                    }
-                ],
-                "max_tokens": max_output_tokens,
-                "temperature": 0.1,  # Identical to direct Gemini default
-                "response_format": {"type": "json_object"},  # Force JSON response (identical to direct Gemini)
-                "tools": [  # Add JSON schema for structured output (identical to direct Gemini)
-                    {
-                        "type": "function",
-                        "function": {
-                            "name": "provide_feedback",
-                            "description": f"Provide coaching feedback limited to {max_response_words} words maximum",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {
-                                    "feedback": {
-                                        "type": "string",
-                                        "description": f"Coaching feedback limited to {max_response_words} words maximum"
-                                    }
-                                },
-                                "required": ["feedback"]
-                            }
-                        }
-                    }
-                ],
-                "tool_choice": {"type": "function", "function": {"name": "provide_feedback"}}
-            }
-        )
-        
-        if response.status_code != 200:
-            raise Exception(f"OpenRouter API error: {response.status_code} - {response.text}")
-        
-        result = response.json()
-        print(f"📦 OpenRouter response: {result}")
-        
-        if 'choices' in result and len(result['choices']) > 0:
-            content = result['choices'][0]['message']['content']
-            print(f"✅ OpenRouter content: {content}")
-            
-            # Check for tool calls (structured JSON response)
-            if 'tool_calls' in result['choices'][0]['message']:
-                tool_call = result['choices'][0]['message']['tool_calls'][0]
-                if tool_call['function']['name'] == 'provide_feedback':
-                    try:
-                        feedback_json = json.loads(tool_call['function']['arguments'])
-                        print(f"✅ Structured JSON feedback: {feedback_json}")
-                        return feedback_json
-                    except json.JSONDecodeError as e:
-                        print(f"⚠️ JSON parse error in tool call: {e}")
-                        return {"feedback": tool_call['function']['arguments']}
-            
-            # Fallback: Try to parse content as JSON
-            try:
-                feedback_json = json.loads(content)
-                return feedback_json
-            except json.JSONDecodeError:
-                # If not valid JSON, wrap in feedback object
-                return {"feedback": content}
-        else:
-            return {"feedback": "No response from OpenRouter"}
-            
-    except Exception as e:
-        print(f"❌ Error in OpenRouter analysis: {e}")
-        import traceback
-        print(f"❌ Full traceback: {traceback.format_exc()}")
-        return {"feedback": f"Error in OpenRouter analysis: {str(e)}"}
-
-def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
     """Analyze video using direct Gemini API"""
     try:
         print(f"🚀 Using Direct Gemini API for analysis...")
@@ -298,8 +170,6 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
             
     except Exception as e:
         print(f"Error in analysis: {e}")
-        import traceback
-        print(f"Full error traceback: {traceback.format_exc()}")
         return {"feedback": f"Error in analysis: {str(e)}"}
 
 def capture_live_segment(cap, duration_seconds):
@@ -414,11 +284,10 @@ def split_video_into_segments(input_video_path, segment_duration, output_dir="da
         print(f"Error splitting video: {e}")
         return []
 
-def main(activity, video_source, tts_provider, config_path):
+def main(video_source, tts_provider, config_path):
     """Main function to capture video and provide real-time coaching"""
     # Load configuration
     config = load_config(config_path)
-    config["activity"] = activity
 
     # Initialize video capture
     is_live_stream = video_source == "webcam"
@@ -434,7 +303,7 @@ def main(activity, video_source, tts_provider, config_path):
         print(f"Error: Could not open video source: {source_name}")
         return
 
-    print(f"NED started for {activity} using {source_name} with {tts_provider} TTS.")
+    print(f"NED started for {config["activity"]} using {source_name} with {tts_provider} TTS.")
 
     analysis_interval = config.get('feedback_frequency')
     fps = config.get('fps')
@@ -503,7 +372,7 @@ def main(activity, video_source, tts_provider, config_path):
                     pass
 
             # Create output video with audio overlay
-            output_path = f"data/coached_{activity}_{Path(video_source).stem}.mp4"
+            output_path = f"data/coached_{config["activity"]}_{Path(video_source).stem}.mp4"
             print(f"Creating final video with audio overlay: {output_path}")
 
             success = tts_manager.create_video_with_audio_overlay(video_source, output_path)
@@ -542,4 +411,4 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    main(args.activity, args.video_source, args.tts, args.config)
+    main(args.video_source, args.tts, args.config)
