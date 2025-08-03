@@ -363,7 +363,7 @@ export default function Home() {
       paddle_ball: '🏓',
       plyometrics: '💪'
     };
-    return icons[activity] || '🎯';
+    return icons[activity];
   };
 
   const getVoiceIcon = (provider: string) => {
