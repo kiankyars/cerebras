@@ -20,7 +20,7 @@ if not api_key:
 # Initialize the new genai client
 client = genai.Client(api_key=api_key)
 
-def load_config(config_path="coach_config.json"):
+def load_config(config_path="configs/coach_config.json"):
     """Load coaching configuration from JSON file"""
     with open(config_path, 'r') as f:
         return json.load(f)
@@ -202,8 +202,8 @@ if __name__ == "__main__":
     
     parser.add_argument(
         "--config",
-        default="coach_config.json",
-        help="Path to coaching configuration file (default: coach_config.json)"
+        default="configs/coach_config.json",
+        help="Path to coaching configuration file (default: configs/coach_config.json)"
     )
     
     args = parser.parse_args()
