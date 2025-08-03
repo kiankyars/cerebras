@@ -1,6 +1,7 @@
 import cv2
 import time
 from google import genai
+from google.genai import types
 import os
 from dotenv import load_dotenv
 import argparse
@@ -24,89 +25,62 @@ def load_config(config_path="coach_config.json"):
     with open(config_path, 'r') as f:
         return json.load(f)
 
-def create_system_prompt(config):
-    """Create system prompt from config (under 200 words)"""
+def create_system_prompt(config, fps):
     activity = config["activity"]
-    goal = config["goal"]
-    focus_on = config["focus_on"]
-    skill_level = config["skill_level"]
-    custom_prompt = config["custom_prompt"]
     
-    base_prompt = f"""You are a real-time {activity} coach. Analyze this video frame.
+    # Build analysis section dynamically based on available keys
+    analysis_parts = []
+    
+    if "goal" in config:
+        analysis_parts.append(f"- My goal: {config['goal']}")
+    
+    if "focus_on" in config:
+        analysis_parts.append(f"- Focus on: {config['focus_on']}")
+    
+    if "skill_level" in config: 
+        analysis_parts.append(f"- My level: {config['skill_level']}")
+    
+    analysis_section = "\n".join(analysis_parts) if analysis_parts else "- Focus on my basic form"
+    
+    base_prompt = f"""You are a real-time {activity} coach. Help me like you're Michael Jordan. This video is {fps}fps.
 
-VALIDATION:
-- If wrong activity detected: "Wrong activity"
-- If no movement: "I don't see any movement" 
-- If poor lighting/camera: "I can't see you clearly"
-
-ANALYSIS:
-- Goal: {goal}
-- Focus on: {focus_on}
-- Skill level: {skill_level}
-{f"- Custom focus: {custom_prompt}" if custom_prompt else ""}
+VALIDATION: Notify me if wrong activity, no movement, or poor lighting detected.
 
 FEEDBACK:
-- Provide specific form feedback
-- Keep under {config['max_response_length']} words
-- Be encouraging but direct
-
-Respond immediately with validation or coaching feedback."""
-    
+{analysis_section}
+- Keep under {config.get('max_response_length', 20)} words
+- ALWAYS Be direct"""
+    print(base_prompt)
+    # quit()
     return base_prompt
 
-def create_video_from_frames(frames, fps=10):
-    """Create a temporary video file from frames"""
-    if not frames:
-        return None
-    
-    # Create temporary video file
-    temp_video = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False)
-    temp_video_path = temp_video.name
-    temp_video.close()
-    
-    # Get frame dimensions
-    height, width = frames[0].shape[:2]
-    
-    # Create video writer
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(temp_video_path, fourcc, fps, (width, height))
-    
-    # Write frames
-    for frame in frames:
-        out.write(frame)
-    
-    out.release()
-    return temp_video_path
-
-def analyze_video_with_gemini(video_path, prompt_template):
-    """Send video to Gemini API for analysis"""
+def analyze_video_with_gemini(video_source, prompt_template, fps, start_offset, end_offset):
+    """Send video to Gemini API for analysis with time offsets"""
     try:
-        # Upload video file using Files API
-        video_file = client.files.upload(file=video_path)
+        # Read video file as bytes
+        with open(video_source, 'rb') as f:
+            video_bytes = f.read()
         
-        # Wait for file to be processed
-        while video_file.state.name != "ACTIVE":
-            time.sleep(1)
-            video_file = client.files.get(name=video_file.name)
-        
-        # Generate content with video
+        # Generate content with video and metadata using time offsets
         response = client.models.generate_content(
-            model="gemini-2.0-flash-exp",
-            contents=[
-                video_file,
-                prompt_template
-            ]
+            model="gemini-2.5-pro",
+            contents=types.Content(
+                parts=[
+                    types.Part(
+                        inline_data=types.Blob(
+                            data=video_bytes,
+                            mime_type='video/mp4'
+                        ),
+                        video_metadata=types.VideoMetadata(fps=fps)
+                    ),
+                    types.Part(text=prompt_template)
+                ]
+            )
         )
-        
-        # Clean up video file
-        os.unlink(video_path)
         
         return response.candidates[0].content.parts[0].text if response.candidates else "No feedback available"
     except Exception as e:
-        print(f"Error analyzing video with Gemini: {e}")
-        # Clean up video file on error
-        if os.path.exists(video_path):
-            os.unlink(video_path)
+        print(e)
         return "Error in analysis"
 
 def main(activity, video_source, tts_provider, config_path):
@@ -114,9 +88,6 @@ def main(activity, video_source, tts_provider, config_path):
     # Load configuration
     config = load_config(config_path)
     config["activity"] = activity  # Override with command line argument
-    
-    # Create system prompt from config
-    prompt_template = create_system_prompt(config)
     
     # Initialize TTS manager
     tts_manager = TTSManager(provider=tts_provider)
@@ -134,16 +105,24 @@ def main(activity, video_source, tts_provider, config_path):
         return
     
     print(f"AI Coach started for {activity} using {source_name} with {tts_provider} TTS. Press 'q' to quit.")
-    print(f"Goal: {config['goal']}")
-    print(f"Focus: {config['focus_on']}")
-    print(f"Skill level: {config['skill_level']}")
-    print(f"Analyzing video every {config['feedback_frequency']} seconds at 10fps...")
+    
+    # Display config info (only if keys exist)
+    if "goal" in config:
+        print(f"Goal: {config['goal']}")
+    if "focus_on" in config:
+        print(f"Focus: {config['focus_on']}")
+    if "skill_level" in config:
+        print(f"Skill level: {config['skill_level']}")
+    
+    print(f"Analyzing video every {config.get('feedback_frequency')} seconds...")
     
     frame_count = 0
-    last_analysis_time = 0
-    frames_buffer = []
-    analysis_interval = config['feedback_frequency']  # seconds
+    analysis_interval = config.get('feedback_frequency')  # seconds
+    last_analysis_time = -analysis_interval
     target_fps = 10
+    
+    # Create system prompt from config with fps
+    prompt_template = create_system_prompt(config, target_fps)
     
     try:
         while True:
@@ -156,27 +135,22 @@ def main(activity, video_source, tts_provider, config_path):
             frame_count += 1
             current_time = time.time()
             
-            # Add frame to buffer (every 3 frames to get ~10fps from 30fps webcam)
-            if frame_count % 3 == 0:
-                frames_buffer.append(frame.copy())
-            
-            # Analyze every 15 seconds
-            if current_time - last_analysis_time >= analysis_interval and frames_buffer:
-                print(f"Analyzing {len(frames_buffer)} frames at {target_fps}fps...")
+            # Analyze every interval
+            if current_time - last_analysis_time >= analysis_interval:
+                print(f"Analyzing video segment...")
                 
-                # Create video from frames
-                video_path = create_video_from_frames(frames_buffer, target_fps)
-                if video_path:
-                    # Analyze video with Gemini
-                    feedback = analyze_video_with_gemini(video_path, prompt_template)
-                    print(f"Analysis result: {feedback}")
-                    
-                    # Add feedback to audio queue
-                    tts_manager.add_to_queue(feedback)
-                    
-                    # Clear buffer
-                    frames_buffer = []
-                    last_analysis_time = current_time
+                # Calculate time offsets for the last interval
+                end_offset = int(current_time)
+                start_offset = end_offset - analysis_interval
+                
+                # Analyze video with Gemini using time offsets
+                feedback = analyze_video_with_gemini(video_source, prompt_template, target_fps, start_offset, end_offset)
+                print(f"Analysis result: {feedback}")
+                
+                # Add feedback to audio queue
+                tts_manager.add_to_queue(feedback)
+                
+                last_analysis_time = current_time
             
             # Display frame (optional, for debugging)
             cv2.imshow(f'AI Coach - {activity}', frame)
@@ -194,6 +168,7 @@ def main(activity, video_source, tts_provider, config_path):
     tts_manager.stop()
     
     print("AI Coach stopped.")
+
 
 if __name__ == "__main__":
     # Set up argument parser

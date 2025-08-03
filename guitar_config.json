@@ -3,8 +3,6 @@
   "goal": "Improve finger dexterity and timing",
   "focus_on": "finger positioning and strumming technique",
   "skill_level": "beginner",
-  "custom_prompt": "Focus on my chord transitions and finger placement",
-  "encouragement_style": "energetic",
   "feedback_frequency": 12,
   "max_response_length": 45
 } 

@@ -78,3 +78,5 @@ Apply to temp_speech....
 5. Next steps
 Keep it under 200 words. The prompt should be a template with placeholders for activity-specific details, not a novel.
 Focus on the core coaching loop: validate → analyze → feedback → encourage.
+
+statistics
