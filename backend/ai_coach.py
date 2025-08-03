@@ -17,6 +17,7 @@ load_dotenv()
 
 # Configure Gemini API
 api_key = os.getenv("GEMINI_API_KEY")
+print(api_key)
 if not api_key:
     raise ValueError("GEMINI_API_KEY not found in environment variables")
 
