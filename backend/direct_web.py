@@ -25,6 +25,11 @@ from utils.config_manager import ConfigManager
 
 # Global storage
 active_sessions: Dict[str, Dict] = {}
+
+# Fix config path - ConfigManager needs to look in backend/configs
+import os
+# Change to backend directory so configs can be found
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 config_manager = ConfigManager("configs")
 
 class DirectWebManager:
@@ -211,8 +216,15 @@ async def create_session_handler(request):
 
 async def list_configs_handler(request):
     """List available configurations"""
-    configs = config_manager.list_all_configs()
-    return web.json_response({"configs": configs})
+    try:
+        configs = config_manager.list_all_configs()
+        print(f"📋 Found {len(configs)} configurations")
+        for config in configs:
+            print(f"  - {config['category']}/{config['name']} ({config['id']})")
+        return web.json_response({"configs": configs})
+    except Exception as e:
+        print(f"❌ Error listing configs: {e}")
+        return web.json_response({"configs": [], "error": str(e)})
 
 async def index_handler(request):
     """Serve the main HTML page"""
@@ -271,18 +283,38 @@ async def index_handler(request):
         // Load configurations
         async function loadConfigs() {
             try {
+                console.log('Loading configurations...');
                 const response = await fetch('/configs');
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const data = await response.json();
+                console.log('Configs data:', data);
+                
                 const select = document.getElementById('configSelect');
                 
-                data.configs.forEach(config => {
+                if (data.configs && data.configs.length > 0) {
+                    data.configs.forEach(config => {
+                        const option = document.createElement('option');
+                        option.value = config.id;
+                        option.textContent = `${config.name} (${config.category})`;
+                        select.appendChild(option);
+                    });
+                    console.log(`Loaded ${data.configs.length} configurations`);
+                } else {
+                    console.warn('No configurations found');
                     const option = document.createElement('option');
-                    option.value = config.id;
-                    option.textContent = config.name;
+                    option.value = '';
+                    option.textContent = 'No configurations available';
                     select.appendChild(option);
-                });
+                }
             } catch (error) {
                 console.error('Error loading configs:', error);
+                document.getElementById('configSelect').innerHTML = 
+                    '<option value="">Error loading configurations</option>';
             }
         }
 
