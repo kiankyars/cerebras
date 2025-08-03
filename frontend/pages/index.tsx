@@ -352,6 +352,7 @@ export default function Home() {
   };
 
   const getActivityIcon = (activity: string) => {
+    console.log('Activity ID:', activity);
     const icons: { [key: string]: string } = {
       basketball: '🏀',
       soccer: '⚽',
@@ -363,6 +364,8 @@ export default function Home() {
       paddle_ball: '🏓',
       plyometrics: '💪'
     };
+    console.log('Available icon keys:', Object.keys(icons));
+    console.log('Icon found:', icons[activity]);
     return icons[activity];
   };
 
