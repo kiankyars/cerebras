@@ -1,0 +1,11 @@
+opencv-python
+google-generativeai
+python-dotenv
+google-genai>=1.28.0
+openai>=1.98.0
+ruff>=0.12.7
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+websockets>=12.0
+aiohttp>=3.9.0 
