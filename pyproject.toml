@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "Real-time coaching with video capture and voice feedback"
 requires-python = ">=3.12"
 dependencies = [
-    "numpy<2.0.0",
     "opencv-python-headless",
     "google-generativeai",
     "python-dotenv",
