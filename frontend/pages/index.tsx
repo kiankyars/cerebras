@@ -382,6 +382,28 @@ export default function Home() {
     return provider === 'chatgpt' ? 'Clear Coach AI' : 'Natural Coach AI';
   };
 
+  const getVoiceStyleName = (style: string) => {
+    const styles: { [key: string]: string } = {
+      'cheerful': 'Cheerful',
+      'encouraging': 'Encouraging', 
+      'professional': 'Professional',
+      'friendly': 'Friendly',
+      'energetic': 'Energetic'
+    };
+    return styles[style] || 'Cheerful';
+  };
+
+  const getVoiceStyleIcon = (style: string) => {
+    const icons: { [key: string]: string } = {
+      'cheerful': '😊',
+      'encouraging': '💪',
+      'professional': '👔', 
+      'friendly': '🤝',
+      'energetic': '⚡'
+    };
+    return icons[style] || '😊';
+  };
+
   const getSelectedVoiceStyle = () => {
     return voiceStyles.find(style => style.id === selectedVoiceStyle) || voiceStyles[0];
   };
@@ -404,7 +426,7 @@ export default function Home() {
         {/* Header */}
         <div className="text-center mb-10">
           <h1 className="text-3xl font-bold text-white mb-3">NED</h1>
-          <p className="text-blue-200 text-base">AI Coaching Assistant</p>
+          <p className="text-blue-200 text-base">NED</p>
         </div>
 
         {/* Error Display */}
@@ -496,9 +518,9 @@ export default function Home() {
             className="w-full bg-blue-800/50 border border-blue-600/50 rounded-lg p-4 flex items-center justify-between text-left hover:bg-blue-700/50 transition-colors"
           >
             <div className="flex items-center space-x-4">
-              <span className="text-2xl">{getVoiceIcon(selectedTTSProvider)}</span>
+              <span className="text-2xl">{getVoiceStyleIcon(selectedVoiceStyle)}</span>
               <span className="text-white font-medium text-lg">
-                {getVoiceName(selectedTTSProvider)}
+                {getVoiceStyleName(selectedVoiceStyle)}
               </span>
             </div>
             <span className="text-blue-300 text-xl">›</span>
@@ -510,6 +532,17 @@ export default function Home() {
           <div className="text-center">
             {/* Video Container */}
             <div className="relative mb-8">
+              {/* Coach Avatar Overlay - Above Video */}
+              {isRecording && (
+                <div className="absolute -top-16 left-1/2 transform -translate-x-1/2 z-10">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-2xl border-4 border-blue-400/50">
+                    <div className="w-14 h-14 rounded-full bg-gray-800 flex items-center justify-center">
+                      <span className="text-xl">👨‍🏫</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <video
                 ref={videoRef}
                 autoPlay
@@ -517,31 +550,6 @@ export default function Home() {
                 className="w-full aspect-video rounded-lg shadow-2xl bg-gray-900"
                 style={{ transform: 'scaleX(-1)' }}
               />
-              
-              {/* Coach Avatar Overlay */}
-              {isRecording && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-2xl border-4 border-blue-400/50">
-                    <div className="w-16 h-16 rounded-full bg-gray-800 flex items-center justify-center">
-                      <span className="text-2xl">👨‍🏫</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {/* Time and Status Overlay */}
-              {isRecording && (
-                <div className="absolute bottom-4 left-4 right-4 text-center">
-                  <div className="bg-black/50 backdrop-blur-sm rounded-lg p-4">
-                    <div className="text-white font-mono text-xl mb-2">
-                      Time: {formatTime(timeElapsed)}
-                    </div>
-                    <div className="text-blue-200 text-base">
-                      {feedback || 'Analyzing your movements...'}
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
             
             {/* Control Button */}
@@ -654,37 +662,79 @@ export default function Home() {
           </div>
         )}
 
-        {/* Voice Style Selection Modal */}
+        {/* Voice Selection Modal */}
         {showVoiceModal && (
-          <div 
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-            onClick={() => setShowVoiceModal(false)}
-          >
-            <div 
-              className="bg-blue-900 rounded-lg p-6 w-80 max-h-96 overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-blue-900 rounded-lg p-6 w-80">
               <h3 className="text-lg font-semibold text-white mb-4">Select Voice Style</h3>
               <div className="space-y-2">
-                {voiceStyles.map((style) => (
-                  <button
-                    key={style.id}
-                    onClick={() => {
-                      setSelectedVoiceStyle(style.id);
-                      setShowVoiceModal(false);
-                    }}
-                    className="w-full p-3 text-left bg-blue-800/50 rounded-lg hover:bg-blue-700/50 transition-colors"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <span className="text-xl">{style.icon}</span>
-                      <div className="flex-1">
-                        <div className="text-white font-medium">{style.name}</div>
-                        <div className="text-blue-200 text-xs">{style.instruction}</div>
-                      </div>
-                    </div>
-                  </button>
-                ))}
+                <button
+                  onClick={() => {
+                    setSelectedVoiceStyle('cheerful');
+                    setShowVoiceModal(false);
+                  }}
+                  className="w-full p-3 text-left bg-blue-800/50 rounded-lg hover:bg-blue-700/50 transition-colors"
+                >
+                  <div className="flex items-center space-x-3">
+                    <span className="text-xl">😊</span>
+                    <span className="text-white">Cheerful</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedVoiceStyle('encouraging');
+                    setShowVoiceModal(false);
+                  }}
+                  className="w-full p-3 text-left bg-blue-800/50 rounded-lg hover:bg-blue-700/50 transition-colors"
+                >
+                  <div className="flex items-center space-x-3">
+                    <span className="text-xl">💪</span>
+                    <span className="text-white">Encouraging</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedVoiceStyle('professional');
+                    setShowVoiceModal(false);
+                  }}
+                  className="w-full p-3 text-left bg-blue-800/50 rounded-lg hover:bg-blue-700/50 transition-colors"
+                >
+                  <div className="flex items-center space-x-3">
+                    <span className="text-xl">👔</span>
+                    <span className="text-white">Professional</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedVoiceStyle('friendly');
+                    setShowVoiceModal(false);
+                  }}
+                  className="w-full p-3 text-left bg-blue-800/50 rounded-lg hover:bg-blue-700/50 transition-colors"
+                >
+                  <div className="flex items-center space-x-3">
+                    <span className="text-xl">🤝</span>
+                    <span className="text-white">Friendly</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedVoiceStyle('energetic');
+                    setShowVoiceModal(false);
+                  }}
+                  className="w-full p-3 text-left bg-blue-800/50 rounded-lg hover:bg-blue-700/50 transition-colors"
+                >
+                  <div className="flex items-center space-x-3">
+                    <span className="text-xl">⚡</span>
+                    <span className="text-white">Energetic</span>
+                  </div>
+                </button>
               </div>
+              <button
+                onClick={() => setShowVoiceModal(false)}
+                className="mt-4 w-full py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         )}

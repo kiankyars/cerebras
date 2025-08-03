@@ -196,14 +196,14 @@ async def process_upload_video(session_id: str, session: dict, config: dict):
     try:
         video_path = session["video_path"]
         tts_provider = session["tts_provider"]
+        voice_style = session["voice_style"]
         
         # Initialize TTS manager
-        tts_manager = TTSManager(provider=tts_provider, mode="video")
+        tts_manager = TTSManager(provider=tts_provider, mode="video", voice_style=voice_style)
         
         # Create prompt
         fps = config.get('fps')
-        voice_style = session.get('voice_style', 'cheerful')
-        prompt_template = create_system_prompt(config, fps, voice_style)
+        prompt_template = create_system_prompt(config, fps)
         
         # Split video into segments
         analysis_interval = config.get('feedback_frequency')
@@ -329,14 +329,14 @@ async def handle_live_session(websocket: WebSocket, session_id: str, session: di
     """Handle live video analysis via WebSocket"""
     config = config_manager.load_config_by_path(session["config_path"])
     tts_provider = session["tts_provider"]
+    voice_style = session["voice_style"]
     
     # Initialize TTS manager for live mode
-    tts_manager = TTSManager(provider=tts_provider, mode="live")
+    tts_manager = TTSManager(provider=tts_provider, mode="live", voice_style=voice_style)
     
     # Create prompt
     fps = config.get('fps', 30)
-    voice_style = session.get('voice_style', 'cheerful')
-    prompt_template = create_system_prompt(config, fps, voice_style)
+    prompt_template = create_system_prompt(config, fps)
     feedback_frequency = config.get('feedback_frequency', 3)  # seconds
     
     try:
