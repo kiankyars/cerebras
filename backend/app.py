@@ -88,7 +88,7 @@ async def get_config(config_id: str):
 async def create_upload_session(
     video: UploadFile = File(...),
     config_id: str = Form(...),
-    tts_provider: str = Form(default="gemini")
+    tts_provider: str = Form(default="chatgpt")
 ):
     """Create a new session for uploaded video analysis"""
     session_id = str(uuid.uuid4())
@@ -122,7 +122,7 @@ async def create_upload_session(
 @app.post("/sessions/live")
 async def create_live_session(
     config_id: str = Form(...),
-    tts_provider: str = Form(default="gemini")
+    tts_provider: str = Form(default="chatgpt")
 ):
     """Create a new session for live video analysis"""
     session_id = str(uuid.uuid4())
