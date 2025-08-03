@@ -67,7 +67,7 @@ def analyze_video_with_gemini(video_file_path, prompt_template, fps, config):
         return analyze_video_with_gemini(video_file_path, prompt_template, fps, config)
 
 def analyze_video_with_openrouter(video_file_path, prompt_template, fps, config):
-    """Analyze video using Gemini 2.5 Pro via OpenRouter"""
+    """Analyze video using Gemini 2.5 Pro via OpenRouter with identical hyperparameters"""
     try:
         openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
         if not openrouter_api_key:
@@ -81,15 +81,17 @@ def analyze_video_with_openrouter(video_file_path, prompt_template, fps, config)
             video_bytes = f.read()
         video_base64 = base64.b64encode(video_bytes).decode('utf-8')
         
-        # Get max response length
+        # Get max response length (identical to direct Gemini)
         max_response_words = config.get('max_response_length', 10)
         max_output_tokens = max(1000, max_response_words * 20)
         
         print(f"🚀 Calling OpenRouter Gemini 2.5 Pro with {len(video_bytes)} bytes video...")
-        print(f"📝 Prompt: {prompt_template}")
+        print(f"📝 Prompt text ({len(prompt_template)} chars):")
+        print(f"📝 {prompt_template}")
         print(f"🎯 Max output tokens: {max_output_tokens}")
+        print(f"📹 Video FPS: {fps}")
         
-        # OpenRouter API call
+        # OpenRouter API call with identical hyperparameters to direct Gemini
         response = requests.post(
             "https://openrouter.ai/api/v1/chat/completions",
             headers={
@@ -111,14 +113,36 @@ def analyze_video_with_openrouter(video_file_path, prompt_template, fps, config)
                                 "type": "video",
                                 "video": {
                                     "data": video_base64,
-                                    "format": "webm"
+                                    "format": "webm",
+                                    "fps": fps  # Add FPS metadata (identical to direct Gemini)
                                 }
                             }
                         ]
                     }
                 ],
                 "max_tokens": max_output_tokens,
-                "temperature": 0.1
+                "temperature": 0.1,  # Identical to direct Gemini default
+                "response_format": {"type": "json_object"},  # Force JSON response (identical to direct Gemini)
+                "tools": [  # Add JSON schema for structured output (identical to direct Gemini)
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": "provide_feedback",
+                            "description": f"Provide coaching feedback limited to {max_response_words} words maximum",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "feedback": {
+                                        "type": "string",
+                                        "description": f"Coaching feedback limited to {max_response_words} words maximum"
+                                    }
+                                },
+                                "required": ["feedback"]
+                            }
+                        }
+                    }
+                ],
+                "tool_choice": {"type": "function", "function": {"name": "provide_feedback"}}
             }
         )
         
@@ -132,7 +156,19 @@ def analyze_video_with_openrouter(video_file_path, prompt_template, fps, config)
             content = result['choices'][0]['message']['content']
             print(f"✅ OpenRouter content: {content}")
             
-            # Try to parse as JSON
+            # Check for tool calls (structured JSON response)
+            if 'tool_calls' in result['choices'][0]['message']:
+                tool_call = result['choices'][0]['message']['tool_calls'][0]
+                if tool_call['function']['name'] == 'provide_feedback':
+                    try:
+                        feedback_json = json.loads(tool_call['function']['arguments'])
+                        print(f"✅ Structured JSON feedback: {feedback_json}")
+                        return feedback_json
+                    except json.JSONDecodeError as e:
+                        print(f"⚠️ JSON parse error in tool call: {e}")
+                        return {"feedback": tool_call['function']['arguments']}
+            
+            # Fallback: Try to parse content as JSON
             try:
                 feedback_json = json.loads(content)
                 return feedback_json
