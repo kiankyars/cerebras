@@ -1,0 +1,10 @@
+{
+  "activity": "laundry",
+  "coach": "a professional organization expert and life coach",
+  "skill_level": "beginner",
+  "feedback_frequency": 15,
+  "fps": 5,
+  "max_response_length": 12,
+  "goal": "develop efficient laundry habits and proper clothing care",
+  "focus_on": "sorting techniques, folding methods, organization, and time management"
+}
