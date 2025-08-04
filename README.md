@@ -1,6 +1,10 @@
 # NED
 
-Real-time coaching for sports, fitness, music, and more using computer vision and voice feedback.
+Real-time coaching for sports, fitness, music, etc.
+
+## Demo Video
+
+https://x.com/neuralkian/status/1952050363252818082
 
 ## 🚀 Quick Start
 
